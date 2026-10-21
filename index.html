@@ -202,6 +202,7 @@ summary{cursor:pointer;font-weight:700;font-size:14.5px}
 .msgs{flex:1;min-height:0;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:14px;background:var(--field)}
 .msg{display:flex;flex-direction:column;gap:4px;min-width:0}
 .msg .who{font-size:12.5px;color:var(--muted);font-family:var(--f-mono)}
+.msg .who .tok.warn{color:var(--bad);font-weight:700}
 .msg.me .who::before{content:"나> ";color:var(--title);font-weight:700}
 .msg.ai .who::before{content:"AI> ";color:var(--bad);font-weight:700}
 .msg .body{min-width:0;display:flex;flex-direction:column;gap:8px;font-size:14.5px;line-height:1.7}
@@ -1451,9 +1452,19 @@ function renderBody(text, idx){
   return parts.join("");
 }
 function codeBlocks(text){ const out=[]; const re=/```[^\n]*\n?([\s\S]*?)```/g; let m; while((m=re.exec(text))) out.push(m[1]); return out; }
-function msgHtml(m,i){
+const CALL_WARN_SHARE = 0.2;  // 질문 한 번이 토큰 목표의 이 비율을 넘으면 빨갛게 표시. 작을수록 자주 경고
+// AI 답 머리줄에 붙는 '이번 질문 토큰' (보낸 것 = 앞 대화 + 질문, 답 = AI가 쓴 것)
+function tokHtml(m){
+  if(!m.tok) return "";
+  const sum = m.tok.in + m.tok.out, warn = sum > tokenTarget() * CALL_WARN_SHARE;
+  return ` · <span class="tok${warn?" warn":""}" title="보낸 것 = 앞 대화 + 이번 질문${m.tok.real?"":" (글자 수로 추정)"}">이번 질문 토큰 ${m.tok.real?"":"약 "}${sum.toLocaleString()} (보냄 ${m.tok.in.toLocaleString()} + 답 ${m.tok.out.toLocaleString()})</span>`;
+}
+function whoHtml(m){
   const time = m.at ? new Date(m.at).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"}) : "";
-  return `<div class="msg ${m.role==="user"?"me":"ai"}" data-i="${i}"><div class="who">${m.role==="user"?"나":"AI"} · ${esc(time)}${m.attached?` · 코드 ${m.attached.toLocaleString()}자 첨부`:""}</div>
+  return `${m.role==="user"?"나":"AI"} · ${esc(time)}${m.attached?` · 코드 ${m.attached.toLocaleString()}자 첨부`:""}${tokHtml(m)}`;
+}
+function msgHtml(m,i){
+  return `<div class="msg ${m.role==="user"?"me":"ai"}" data-i="${i}"><div class="who">${whoHtml(m)}</div>
     <div class="body">${m.role==="user"?`<div class="txt">${esc(m.content)}</div>`:renderBody(m.content,i)}</div></div>`;
 }
 
@@ -1925,11 +1936,15 @@ async function sendChat(){
     if(r.modelTierApplied && r.modelTierApplied!==LEVELS[S.aiLevel].tier) st.textContent="요금제 사정으로 다른 성능의 모델이 대신 답했어요.";
     S.usage.calls++; S.usage.inChars+=inChars; S.usage.outChars+=r.text.length;
     if(r.usage){ S.usage.realIn=(S.usage.realIn||0)+r.usage.input; S.usage.realOut=(S.usage.realOut||0)+r.usage.output; }
+    aiMsg.tok = r.usage ? { in:r.usage.input, out:r.usage.output, real:true }
+      : { in:Math.round(inChars/CHARS_PER_TOKEN), out:Math.round(r.text.length/CHARS_PER_TOKEN), real:false };
     if(r.truncated) st.textContent="답이 길어서 중간에 끊겼어요. 더 작은 단위로 물어보세요.";
   }catch(e){
     S.usage.calls++; S.usage.inChars+=inChars; S.usage.outChars+=(e&&e.text||"").length;
     if(e && e.usage){ S.usage.realIn=(S.usage.realIn||0)+e.usage.input; S.usage.realOut=(S.usage.realOut||0)+e.usage.output; }
     aiMsg.content = (e && e.text) ? e.text + "\n\n(답이 중간에 멈췄어요)" : "";
+    if(aiMsg.content) aiMsg.tok = e.usage ? { in:e.usage.input, out:e.usage.output, real:true }
+      : { in:Math.round(inChars/CHARS_PER_TOKEN), out:Math.round((e.text||"").length/CHARS_PER_TOKEN), real:false };
     if(!aiMsg.content){ S.chat.pop(); }
     st.className="status err"; st.textContent = sampleErr(e, "AI 답을 받지 못했어요. 다시 보내 보세요.");
   }finally{
@@ -2175,7 +2190,7 @@ function buildReport(rec){
     L.push("## AI 대화 기록", "");
     S.chat.forEach((m,i)=>{
       const t = m.at ? new Date(m.at).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"}) : "";
-      L.push(`### #${i} ${m.role==="user"?"나":"AI"} ${t}${m.attached?` (코드 ${m.attached}자 첨부)`:""}`, "", m.content, "");
+      L.push(`### #${i} ${m.role==="user"?"나":"AI"} ${t}${m.attached?` (코드 ${m.attached}자 첨부)`:""}${m.tok?` (이번 질문 토큰 ${m.tok.real?"":"약 "}${(m.tok.in+m.tok.out).toLocaleString()} = 보냄 ${m.tok.in.toLocaleString()} + 답 ${m.tok.out.toLocaleString()})`:""}`, "", m.content, "");
     });
   } else {
     L.push("## 프롬프트 기록", "", fence(S.log), "");
