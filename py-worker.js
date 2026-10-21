@@ -64,6 +64,8 @@ async function prepareWeb(p){
 function writeFiles(p, files){
   p.runPython(`
 import os, shutil
+# 지난 실행이 작업 폴더 안으로 cd 해 둔 상태면 폴더를 지울 수 없어서(Resource busy) 먼저 밖으로 나감
+os.chdir("/home/pyodide")
 if os.path.exists(${JSON.stringify(WORK)}):
     shutil.rmtree(${JSON.stringify(WORK)})
 os.makedirs(${JSON.stringify(WORK)}, exist_ok=True)
