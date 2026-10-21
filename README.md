@@ -39,6 +39,7 @@ CJ올리브네트웍스 'AI 역량진단(바이브 코딩 테스트)' 대비용 
 | 경로 | 내용 |
 |---|---|
 | `index.html` | 화면 전체 (문제 은행, 숨은 테스트, 채점 로직, Claude API 호출) |
+| `cm.js` | 코드 에디터 CodeMirror 5.65.18 (+ 파이썬 문법 색, 괄호 짝) 묶음 |
 | `py-worker.js` | 답안 코드를 브라우저 안 파이썬(Pyodide)으로 실행하는 웹 워커 |
 | `py/` | Pyodide 0.29.5와 패키지(FastAPI, pandas, numpy, scikit-learn, pytest 등) |
 
@@ -56,4 +57,5 @@ python -m http.server 8000
 
 ## 사용한 오픈소스
 
+- [CodeMirror 5](https://codemirror.net/5/) (MIT)
 - [Pyodide](https://github.com/pyodide/pyodide) (MPL-2.0)와 그 배포에 들어 있는 패키지들. 각 패키지의 라이선스는 해당 휠 안의 파일을 따라요.
