@@ -1,3 +1,5 @@
+https://ahrdyrxkddhfl.github.io/vibe-mock/
+
 # 바이브코딩 모의고사
 
 CJ올리브네트웍스 'AI 역량진단(바이브 코딩 테스트)' 대비용 연습 사이트예요.
