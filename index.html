@@ -213,7 +213,8 @@ summary{cursor:pointer;font-weight:700;font-size:14.5px}
 .codebox pre{border:0;box-shadow:none}
 .empty{color:var(--muted);font-size:14px;line-height:1.7}
 .composer{flex:none;display:flex;flex-direction:column;gap:6px}
-.composer textarea{min-height:72px;max-height:40vh;font-family:var(--f-body);font-size:14.5px}
+.composer textarea{height:88px;min-height:56px;resize:none;font-family:var(--f-body);font-size:14.5px}
+#agutter{margin:0}
 .composer .opts{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:13.5px}
 .composer label.chk{display:flex;align-items:center;gap:6px;cursor:pointer}
 .composer input[type=checkbox]{accent-color:var(--title);width:14px;height:14px}
@@ -1426,8 +1427,9 @@ function paneChat(){
   const on = S.startedAt && !S.finishedAt;
   return `<div class="chat">
     <div class="msgs" id="msgs">${msgs}</div>
+    <div class="hgutter" id="agutter" title="끌어서 입력칸 높이 조절 · 두 번 누르면 원래대로"></div>
     <div class="composer">
-      <textarea id="ask" placeholder="예) 아래 명세로 엔드포인트 목록과 데이터 구조부터 정리해 줘. 코드는 아직 쓰지 마. (Ctrl+Enter 보내기)" ${on?"":"disabled"}></textarea>
+      <textarea id="ask" style="height:${(S.layout&&S.layout.ah)||AI_INPUT.def}px" placeholder="예) 아래 명세로 엔드포인트 목록과 데이터 구조부터 정리해 줘. 코드는 아직 쓰지 마. (Ctrl+Enter 보내기)" ${on?"":"disabled"}></textarea>
       <div class="opts">
         <span class="actions"><label class="chk"><input type="checkbox" id="attach" ${S.attach?"checked":""}> 답안 코드 같이 보내기</label>${S.task&&S.task.api?`<button class="linkbtn" id="pasteSpec">명세 붙여넣기</button>`:""}</span>
         <span class="actions"><button class="btn ghost sm" id="stopChat" hidden>멈추기</button><button class="btn sm" id="send" ${on?"":"disabled"}>보내기</button></span>
@@ -1582,6 +1584,7 @@ const PANE_MAX = 65;        // 문제·AI 칸의 최대 너비
 const CODE_MIN = 20;        // 가운데 코드 칸이 최소로 남길 너비
 const CONSOLE_RANGE = [10, 85];  // 실행 결과 칸 높이 범위
 const LAYOUT_DEFAULT = { w1:30, w3:30, hc:34 };
+const AI_INPUT = { def:88, min:56, maxRatio:0.75 };  // AI 입력칸 높이(px): 기본·최소, 최대는 채팅 칸 높이에 대한 비율
 function bindResizers(){
   const main = document.getElementById("ideMain"); if(!main) return;
   main.querySelectorAll("[data-gutter]").forEach(g => {
@@ -1615,6 +1618,17 @@ function bindResizers(){
     const up = () => { hg.classList.remove("drag"); hg.removeEventListener("pointermove", move); hg.removeEventListener("pointerup", up); saveDraft(); };
     hg.addEventListener("pointermove", move); hg.addEventListener("pointerup", up);
   });
+  const ag = document.getElementById("agutter"), ask = document.getElementById("ask"), chat = main.querySelector(".chat");
+  if(ag && ask && chat){
+    ag.addEventListener("pointerdown", ev => {
+      ev.preventDefault(); ag.setPointerCapture(ev.pointerId); ag.classList.add("drag");
+      const y0 = ev.clientY, h0 = ask.offsetHeight || AI_INPUT.def, max = Math.max(AI_INPUT.min, chat.clientHeight * AI_INPUT.maxRatio);
+      const move = e => { S.layout = S.layout || {}; S.layout.ah = Math.round(Math.max(AI_INPUT.min, Math.min(max, h0 + (y0 - e.clientY)))); ask.style.height = S.layout.ah + "px"; };
+      const up = () => { ag.classList.remove("drag"); ag.removeEventListener("pointermove", move); ag.removeEventListener("pointerup", up); saveDraft(); };
+      ag.addEventListener("pointermove", move); ag.addEventListener("pointerup", up);
+    });
+    ag.addEventListener("dblclick", () => { S.layout = S.layout || {}; S.layout.ah = AI_INPUT.def; ask.style.height = AI_INPUT.def + "px"; saveDraft(); });
+  }
   if(hg && pc) hg.addEventListener("dblclick", () => {
     S.layout = S.layout || {}; S.layout.hc = LAYOUT_DEFAULT.hc; pc.style.setProperty("--hc", S.layout.hc + "%"); if(cm) cm.refresh(); saveDraft();
   });
