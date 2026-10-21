@@ -1184,7 +1184,7 @@ function mast(extra){
   <div class="ticket"><span>직무 ${esc(t.name)}</span><span>${S.minutes}분</span><span>${builtin()?`시험장 방식 · AI ${LEVELS[S.aiLevel].name}`:"내 도구"}</span></div>`;
 }
 const TB_BTNS = `<span class="tb-btns" aria-hidden="true"><span>_</span><span>□</span><span>×</span></span>`;
-function topbar(){ return `<header class="topbar"><span class="tb-icon" aria-hidden="true"></span><span class="brand">바이브코딩 모의고사</span><span class="crumb">— CJ올리브네트웍스 AI 역량진단 대비</span><span class="grow"></span>${TB_BTNS}</header>`; }
+function topbar(){ return `<header class="topbar"><span class="tb-icon" aria-hidden="true"></span><span class="brand">바이브코딩 모의고사</span><span class="grow"></span>${TB_BTNS}</header>`; }
 
 function viewHistory(){
   if(!history.length) return `<section class="section"><h2>지난 기록</h2><p class="muted small">아직 푼 문제가 없어요. 제출하면 점수와 걸린 시간이 여기에 쌓여요.</p></section>`;
