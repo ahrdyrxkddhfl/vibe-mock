@@ -2450,7 +2450,7 @@ async function ghSaveRecord(rec, md){
   }
 }
 function siteReportUrl(path){ return `https://github.com/${ghRepo()}/blob/main/${ghPathUrl(path)}`; }
-function siteHistoryNote(){ return ghReady() ? `기록과 보고서는 GitHub 저장소 ${esc(ghRepo())}에 저장돼요. 제목을 누르면 보고서가 열려요.` : "기록은 이 브라우저에만 저장돼요. 시작 화면에서 GitHub 저장소를 연결하면 어느 기기에서든 남아요."; }
+function siteHistoryNote(){ return ghReady() ? `기록과 보고서는 GitHub 저장소 ${esc(ghRepo())}에 저장돼요. 제목을 누르면 보고서가 열려요.` : "기록은 이 브라우저에만 저장돼요. 홈의 설정에서 GitHub 저장소를 연결하면 어느 기기에서든 남아요."; }
 async function ghLoadHistory(){
   if(!ghReady()) return;
   try{ const idx = await ghReadIndex(); history = idx.list; if(["home","history","reports"].includes(S.view)) render(); }
