@@ -165,12 +165,14 @@ summary{cursor:pointer;font-weight:700;font-size:14.5px}
 .meter b{font-weight:700}
 .meter .warn b{color:var(--bad)}
 .mtabs{display:none}
-.ide-main{flex:1;min-height:0;display:grid;grid-template-columns:var(--w1,30%) 6px minmax(0,1fr) 6px var(--w3,30%);padding:6px;gap:0}
+.ide-main{flex:1;min-height:0;display:grid;grid-template-columns:var(--w1,30%) 10px minmax(0,1fr) 10px var(--w3,30%);padding:6px;gap:0}
 .pane{min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--face)}
 .pane-head{flex:none;display:flex;align-items:center;gap:8px;background:var(--title);color:var(--title-ink);font-weight:700;font-size:13.5px;padding:2px 6px;height:24px}
 .pane-head::before{content:"";width:12px;height:12px;background:var(--field);border:1px solid var(--dark);box-shadow:inset 2px 2px 0 var(--title);flex:none}
 .pane-body{flex:1;min-height:0;overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:14px;background:var(--field);margin:4px;border-style:solid;border-width:2px;border-color:var(--shadow) var(--hi) var(--hi) var(--shadow)}
-.gutter{cursor:col-resize}
+.gutter{cursor:col-resize;position:relative;touch-action:none}
+/* 손잡이: 가운데 오목한 세로 홈 두 줄 */
+.gutter::after{content:"";position:absolute;left:2px;width:2px;top:50%;height:48px;margin-top:-24px;border-left:1px solid var(--shadow);border-right:1px solid var(--hi);box-shadow:3px 0 0 -1px var(--shadow)}
 .gutter:hover,.gutter.drag{background:var(--face-2)}
 /* 코드 창 */
 .filetabs{flex:none;display:flex;align-items:flex-end;gap:0;padding:6px 6px 0;overflow-x:auto;border-bottom:2px solid var(--hi);margin:0 4px}
@@ -182,9 +184,10 @@ summary{cursor:pointer;font-weight:700;font-size:14.5px}
 #codeCount{font-family:var(--f-mono);font-size:12px;color:var(--muted);align-self:center;padding:0 6px;white-space:nowrap}
 .editor{flex:1;min-height:0;position:relative;margin:0 4px;background:var(--field)}
 .editor textarea.fallback{position:absolute;inset:0;width:100%;height:100%;border:0;box-shadow:none;resize:none;tab-size:4;white-space:pre;overflow:auto}
-.hgutter{flex:none;height:6px;cursor:row-resize}
+.hgutter{flex:none;height:10px;cursor:row-resize;position:relative;touch-action:none;margin:0 4px}
+.hgutter::after{content:"";position:absolute;top:3px;height:2px;left:50%;width:48px;margin-left:-24px;border-top:1px solid var(--shadow);border-bottom:1px solid var(--hi)}
 .hgutter:hover,.hgutter.drag{background:var(--face-2)}
-.console{flex:none;height:var(--hc,34%);min-height:120px;display:flex;flex-direction:column;padding:0 4px 4px}
+.console{flex:none;height:var(--hc,34%);min-height:60px;display:flex;flex-direction:column;padding:0 4px 4px}
 .console-bar{flex:none;display:flex;align-items:flex-end;justify-content:space-between;gap:8px;padding:2px 0 0}
 .ctabs{display:flex;align-items:flex-end}
 .ctab{background:var(--face);border-bottom:0;box-shadow:none;font-size:13px;padding:2px 10px;margin-right:-2px;position:relative;top:2px}
@@ -1464,7 +1467,7 @@ function paneCode(){
   const ct = S.ctab || "run";
   return `${fileTabs()}
   <div class="editor" id="editor"></div>
-  <div class="hgutter" id="hgutter" title="끌어서 높이 조절"></div>
+  <div class="hgutter" id="hgutter" title="끌어서 높이 조절 · 두 번 누르면 원래대로"></div>
   <div class="console">
     <div class="console-bar">
       <div class="ctabs" role="tablist"><button class="ctab" data-ctab="run" aria-selected="${ct==="run"}">실행 결과</button><button class="ctab" data-ctab="readme" aria-selected="${ct==="readme"}">README</button></div>
@@ -1539,9 +1542,9 @@ function viewExam(){
   <nav class="mtabs" role="tablist">${[["q","문제"],["code","코드"],["ai",builtin()?"AI":"기록"],["run","실행"]].map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${tab===k}">${l}</button>`).join("")}</nav>
   <div class="ide-main" id="ideMain" style="--w1:${L.w1||30}%;--w3:${L.w3||30}%">
     <section class="pane p-q" ${tab==="q"?"":"data-m-hidden"}><div class="pane-head">문제</div><div class="pane-body">${paneQuestion()}</div></section>
-    <div class="gutter" data-gutter="1" title="끌어서 너비 조절"></div>
+    <div class="gutter" data-gutter="1" title="끌어서 너비 조절 · 두 번 누르면 원래대로"></div>
     <section class="pane p-code" style="--hc:${L.hc||34}%" ${tab==="code"||tab==="run"?"":"data-m-hidden"} data-mt="${tab==="run"?"run":"code"}">${paneCode()}</section>
-    <div class="gutter" data-gutter="3" title="끌어서 너비 조절"></div>
+    <div class="gutter" data-gutter="3" title="끌어서 너비 조절 · 두 번 누르면 원래대로"></div>
     <section class="pane p-ai" ${tab==="ai"?"":"data-m-hidden"}><div class="pane-head">${builtin()?`시험장 AI · 성능 ${LEVELS[S.aiLevel].name}`:"프롬프트 기록"}</div>${paneChat()}</section>
   </div>
   <footer class="statusbar">
@@ -1573,7 +1576,12 @@ function updateClock(){
   updateMeter();
 }
 
-/* 칸 너비·콘솔 높이 끌어서 조절 */
+/* 칸 너비·콘솔 높이 끌어서 조절 (단위: 화면 너비·코드 칸 높이의 %) */
+const PANE_MIN = 12;        // 문제·AI 칸의 최소 너비. 작으면 칸을 거의 접을 수 있고, 크면 좁은 화면에서 가운데가 눌려요
+const PANE_MAX = 65;        // 문제·AI 칸의 최대 너비
+const CODE_MIN = 20;        // 가운데 코드 칸이 최소로 남길 너비
+const CONSOLE_RANGE = [10, 85];  // 실행 결과 칸 높이 범위
+const LAYOUT_DEFAULT = { w1:30, w3:30, hc:34 };
 function bindResizers(){
   const main = document.getElementById("ideMain"); if(!main) return;
   main.querySelectorAll("[data-gutter]").forEach(g => {
@@ -1583,22 +1591,32 @@ function bindResizers(){
       const move = e => {
         const x = (e.clientX - rect.left) / rect.width * 100;
         S.layout = S.layout || {};
-        if(g.dataset.gutter === "1") S.layout.w1 = Math.max(18, Math.min(50, x));
-        else S.layout.w3 = Math.max(20, Math.min(50, 100 - x));
-        main.style.setProperty("--w1", (S.layout.w1||30) + "%"); main.style.setProperty("--w3", (S.layout.w3||30) + "%");
+        const w1 = S.layout.w1 || LAYOUT_DEFAULT.w1, w3 = S.layout.w3 || LAYOUT_DEFAULT.w3;
+        if(g.dataset.gutter === "1") S.layout.w1 = Math.max(PANE_MIN, Math.min(PANE_MAX, 100 - w3 - CODE_MIN, x));
+        else S.layout.w3 = Math.max(PANE_MIN, Math.min(PANE_MAX, 100 - w1 - CODE_MIN, 100 - x));
+        main.style.setProperty("--w1", (S.layout.w1||LAYOUT_DEFAULT.w1) + "%"); main.style.setProperty("--w3", (S.layout.w3||LAYOUT_DEFAULT.w3) + "%");
         if(cm) cm.refresh();
       };
       const up = () => { g.classList.remove("drag"); g.removeEventListener("pointermove", move); g.removeEventListener("pointerup", up); saveDraft(); };
       g.addEventListener("pointermove", move); g.addEventListener("pointerup", up);
+    });
+    g.addEventListener("dblclick", () => {
+      S.layout = S.layout || {};
+      S.layout[g.dataset.gutter === "1" ? "w1" : "w3"] = LAYOUT_DEFAULT[g.dataset.gutter === "1" ? "w1" : "w3"];
+      main.style.setProperty("--w1", (S.layout.w1||LAYOUT_DEFAULT.w1) + "%"); main.style.setProperty("--w3", (S.layout.w3||LAYOUT_DEFAULT.w3) + "%");
+      if(cm) cm.refresh(); saveDraft();
     });
   });
   const hg = document.getElementById("hgutter"), pc = main.querySelector(".p-code");
   if(hg && pc) hg.addEventListener("pointerdown", ev => {
     ev.preventDefault(); hg.setPointerCapture(ev.pointerId); hg.classList.add("drag");
     const rect = pc.getBoundingClientRect();
-    const move = e => { S.layout = S.layout || {}; S.layout.hc = Math.max(15, Math.min(75, (rect.bottom - e.clientY) / rect.height * 100)); pc.style.setProperty("--hc", S.layout.hc + "%"); if(cm) cm.refresh(); };
+    const move = e => { S.layout = S.layout || {}; S.layout.hc = Math.max(CONSOLE_RANGE[0], Math.min(CONSOLE_RANGE[1], (rect.bottom - e.clientY) / rect.height * 100)); pc.style.setProperty("--hc", S.layout.hc + "%"); if(cm) cm.refresh(); };
     const up = () => { hg.classList.remove("drag"); hg.removeEventListener("pointermove", move); hg.removeEventListener("pointerup", up); saveDraft(); };
     hg.addEventListener("pointermove", move); hg.addEventListener("pointerup", up);
+  });
+  if(hg && pc) hg.addEventListener("dblclick", () => {
+    S.layout = S.layout || {}; S.layout.hc = LAYOUT_DEFAULT.hc; pc.style.setProperty("--hc", S.layout.hc + "%"); if(cm) cm.refresh(); saveDraft();
   });
 }
 
