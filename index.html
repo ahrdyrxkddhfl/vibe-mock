@@ -148,7 +148,8 @@ summary{cursor:pointer;font-weight:700;font-size:14.5px}
 .ide{height:100%;display:flex;flex-direction:column;min-height:0;background:var(--face)}
 .menubar{flex:none;display:flex;align-items:center;gap:6px;min-height:38px;padding:4px 8px;border-bottom:1px solid var(--shadow);box-shadow:0 1px 0 var(--hi)}
 .menubar .grow{flex:1}
-.menubar .m{padding:2px 8px;font-size:14px}
+.menubar .m{padding:2px 8px;font-size:14px;background:none;border:1px solid transparent}
+.menubar button.m:hover{border-color:var(--hi) var(--shadow) var(--shadow) var(--hi)}
 .menubar .m u{text-decoration:underline}
 .timer{font-family:var(--f-mono);font-weight:700;font-size:18px;letter-spacing:.04em;padding:1px 10px;background:var(--field);color:var(--ink);font-variant-numeric:tabular-nums}
 .timer.low{color:var(--bad)}
@@ -235,8 +236,53 @@ summary{cursor:pointer;font-weight:700;font-size:14.5px}
   .console{height:auto;flex:1}
   .p-code[data-mt="code"] .console,.p-code[data-mt="run"] .editor,.p-code[data-mt="run"] .filetabs,.p-code .hgutter{display:none}
   .p-code[data-mt="run"] .console{display:flex}
-  .menubar .m{display:none}
+  .menubar .m.opt{display:none}
+  .menubar{gap:4px;flex-wrap:wrap}
 }
+
+/* ───── 페이지 메뉴 · 홈(바탕화면) · 보고서 ───── */
+.pagemenu{position:sticky;top:calc(env(safe-area-inset-top,0px) + 30px);z-index:19;background:var(--face);overflow-x:auto;
+  padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+.pagemenu .m{background:none;border:1px solid transparent;padding:2px 10px;font-size:14px;white-space:nowrap}
+.pagemenu .m:hover{border-color:var(--hi) var(--shadow) var(--shadow) var(--hi)}
+.pagemenu .m[aria-current="true"]{border-color:var(--shadow) var(--hi) var(--hi) var(--shadow);background:var(--face-2);font-weight:700}
+.wrap.wide{max-width:1000px}
+.desktop{display:grid;grid-template-columns:auto minmax(0,1fr);gap:24px;align-items:start}
+.dicons{display:flex;flex-direction:column;gap:14px;padding-top:4px}
+.dicon{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:4px;width:96px;padding:4px;color:var(--title-ink);font-size:13.5px;text-align:center}
+.dicon span{padding:0 3px;text-shadow:1px 1px 0 var(--dark)}
+.dicon:hover span,.dicon:focus-visible span{background:var(--title);text-shadow:none;outline:1px dotted var(--title-ink)}
+.dicon:focus-visible{outline:none}
+.dicon svg{image-rendering:pixelated;shape-rendering:crispEdges}
+.window{background:var(--face);border-style:solid;border-width:2px;border-color:var(--hi) var(--dark) var(--dark) var(--hi);box-shadow:inset -1px -1px var(--shadow),inset 1px 1px var(--face-2)}
+.window > h2{background:var(--title);color:var(--title-ink);font-size:14px;font-weight:700;padding:3px 8px}
+.win-body{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.home-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.stat{background:var(--field);padding:8px 10px;display:flex;flex-direction:column;border-style:solid;border-width:2px;border-color:var(--shadow) var(--hi) var(--hi) var(--shadow)}
+.stat span{font-size:12.5px;color:var(--muted)}
+.stat b{font-family:var(--f-mono);font-size:26px;line-height:1.2}
+@media (max-width:640px){
+  .desktop{grid-template-columns:1fr}
+  .dicons{flex-direction:row;flex-wrap:wrap;justify-content:space-around;gap:6px}
+  .dicon{width:80px}
+}
+.replist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;background:var(--field);border-style:solid;border-width:2px;border-color:var(--shadow) var(--hi) var(--hi) var(--shadow)}
+.replist li + li{border-top:1px solid var(--field-2)}
+.repitem{width:100%;background:none;border:0;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;padding:6px 10px}
+.repitem:hover,.repitem:focus-visible{background:var(--sel)}
+.repicon svg{width:28px;height:28px}
+.reptext{display:flex;flex-direction:column;min-width:0}
+.reptext b{font-weight:700}
+.repscore{font-family:var(--f-mono);font-weight:700}
+.report-win > .md{margin:0 14px;background:var(--field);padding:14px 18px;border-style:solid;border-width:2px;border-color:var(--shadow) var(--hi) var(--hi) var(--shadow);display:flex;flex-direction:column;gap:10px;font-size:15px}
+.md h2{font-family:var(--f-mono);font-size:19px}
+.md h3{font-size:16px;border-bottom:1px solid var(--shadow);padding-bottom:2px;margin-top:8px}
+.md h4,.md h5{font-size:14.5px;color:var(--title)}
+.md ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:3px}
+.md li.task{list-style:none;margin-left:-18px}
+.md blockquote{margin:0;padding:6px 10px;border-left:3px solid var(--title);background:var(--field-2)}
+.md pre{white-space:pre-wrap;word-break:break-all}
+.md .tablewrap{border:1px solid var(--shadow)}
 
 /* 채점 결과 */
 .score{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center}
@@ -1046,7 +1092,7 @@ let history = [];
 let gradeCtl = null, chatCtl = null, chatBusy = false;
 
 function freshState(){
-  return { view:"setup", track:"de", minutes:120, env:"builtin", aiLevel:"mid", ptype:"api", runs:0, hiddenRes:null, task:null, source:"bank",
+  return { view:"home", track:"de", minutes:120, env:"builtin", aiLevel:"mid", ptype:"api", runs:0, hiddenRes:null, task:null, source:"bank",
     startedAt:null, pausedAt:null, pausedMs:0, finishedAt:null, tab:"q",
     done:{}, chat:[], usage:{calls:0,inChars:0,outChars:0}, attach:true, leaves:0,
     log:"", code:"", codePrev:null, run:"", readme:"", result:null, selfScores:{}, selfHidden:{}, saved:false };
@@ -1096,7 +1142,7 @@ function viewSetup(){
   <section class="section"><h2>직무</h2><div class="choices">${trackBtns}</div></section>
   <section class="section"><h2>문제 유형</h2><div class="choices">${ptypes.map(([k,n,d])=>`<button class="choice" data-ptype="${k}" aria-pressed="${S.ptype===k}"><b>${n}</b><small>${d}</small></button>`).join("")}</div></section>
   <section class="section"><h2>제한 시간</h2><div class="mins">${minBtns}</div></section>
-  ${typeof siteSettings==="function" ? siteSettings() : ""}
+  ${hasSettings() && typeof getKey==="function" && !getKey() ? `<div class="notice pen">AI 채팅·채점을 쓰려면 Claude API 키가 필요해요. <button class="linkbtn" data-nav="settings">설정 열기</button></div>` : ""}
   <section class="section"><h2>AI 환경</h2>
     <div class="choices two">
       <button class="choice" data-env="builtin" aria-pressed="${S.env==="builtin"}" ${sampleFn?"":"disabled"}><b>시험장 방식</b><small>화면 안 AI만 사용. 질문·답변·토큰이 자동 기록되고 채점에 들어가요.${sampleFn?"":(typeof siteSettings==="function"?" (API 키 필요)":" (AI 연결 대기 중)")}</small></button>
@@ -1123,7 +1169,7 @@ function viewSetup(){
       <li>실제 개인정보·키 값은 AI에 넣지 말고 가짜 값으로 바꿔요.</li>
     </ol>
   </details>
-  ${viewHistory()}`;
+`;
 }
 
 const PAGE_TITLES = { "제출":"제출 확인", "결과":"채점 결과", "직접 채점":"직접 채점" };
@@ -1146,6 +1192,196 @@ function viewHistory(){
   return `<section class="section"><h2>지난 기록 <span class="muted small" style="font-weight:400">· ${history.length}회, 평균 ${avg}점</span></h2>
     <div class="tablewrap"><table class="hist"><thead><tr><th>날짜</th><th>문제</th><th style="text-align:right">시간</th><th style="text-align:right">점수</th></tr></thead><tbody>${rows}</tbody></table></div>
     <p class="muted small">${typeof siteHistoryNote==="function" ? siteHistoryNote() : (dbApi?"기록은 내 계정에만 저장돼요.":"기록은 이 브라우저에만 저장돼요.")}</p></section>`;
+}
+
+/* ───────── 화면: 홈 · 이전 기록 · 보고서 ───────── */
+const ICONS = {
+  new: `<svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true"><rect x="6" y="3" width="17" height="24" fill="#F3F2ED" stroke="#1E1F1C"/><path d="M9 9h11M9 13h11M9 17h7" stroke="#45696C" stroke-width="2"/><path d="M20 26l7-11 3 2-7 11-4 1z" fill="#C9A35A" stroke="#1E1F1C"/></svg>`,
+  history: `<svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true"><rect x="3" y="5" width="26" height="22" fill="#F3F2ED" stroke="#1E1F1C"/><rect x="3" y="5" width="26" height="5" fill="#45696C"/><rect x="7" y="20" width="4" height="4" fill="#8C3B2E"/><rect x="13" y="16" width="4" height="8" fill="#45696C"/><rect x="19" y="13" width="4" height="11" fill="#3D6338"/></svg>`,
+  reports: `<svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true"><path d="M2 8h10l3 3h15v17H2z" fill="#D9C27A" stroke="#1E1F1C"/><rect x="6" y="4" width="14" height="12" fill="#F3F2ED" stroke="#1E1F1C"/><path d="M8 8h10M8 11h8" stroke="#45696C" stroke-width="1.5"/><path d="M2 13h28v15H2z" fill="#E6CF86" stroke="#1E1F1C"/></svg>`,
+  settings: `<svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true"><rect x="4" y="6" width="24" height="17" fill="#BDBEB8" stroke="#1E1F1C"/><rect x="7" y="9" width="18" height="11" fill="#45696C"/><path d="M10 26h12v2H10z" fill="#74756F"/><circle cx="21" cy="14" r="3" fill="#F3F2ED"/><path d="M11 13h6M11 16h4" stroke="#F3F2ED" stroke-width="1.5"/></svg>`,
+};
+const hasSettings = () => typeof siteSettings === "function";
+const inProgress = () => !!(S.task && S.startedAt && !S.finishedAt);
+
+/* 모든 화면(시험 제외) 위쪽 메뉴 */
+function pageMenu(){
+  const items = [["home","홈"],["setup","새 모의고사"],["history","이전 기록"],["reports","보고서 열람"]];
+  if(hasSettings()) items.push(["settings","설정"]);
+  const cur = S.view === "report" ? "reports" : S.view;
+  return `<nav class="menubar pagemenu">${items.map(([v,l])=>`<button class="m" data-nav="${v}" aria-current="${cur===v}">${l}</button>`).join("")}
+    ${inProgress() ? `<span class="grow"></span><button class="btn sm" data-nav="exam">풀던 문제로</button>` : ""}</nav>`;
+}
+
+function viewHome(){
+  const n = history.length;
+  const avg = n ? Math.round(history.reduce((a,h)=>a+(+h.total||0),0)/n) : null;
+  const last = history[0];
+  const best = n ? Math.max(...history.map(h=>+h.total||0)) : null;
+  const left = inProgress() ? Math.max(0, Math.round((limitMs()-elapsed())/60000)) : 0;
+  const icon = (id, ic, label) => `<button class="dicon" data-nav="${id}">${ICONS[ic]}<span>${label}</span></button>`;
+  return `<div class="desktop">
+    <div class="dicons">
+      ${icon("setup","new","새 모의고사")}
+      ${icon("history","history","이전 기록")}
+      ${icon("reports","reports","보고서 열람")}
+      ${hasSettings() ? icon("settings","settings","설정") : ""}
+    </div>
+    <section class="window home-win">
+      <h2>바이브코딩 모의고사</h2>
+      <div class="win-body">
+        <p>CJ올리브네트웍스 AI 역량진단(바이브 코딩 테스트) 연습장이에요. 플랫폼 안 AI와 대화하며 API를 구현하고, 숨은 테스트와 대화 기록으로 채점받아요.</p>
+        ${inProgress() ? `<div class="notice"><b>풀던 문제가 있어요.</b> ${esc(S.task.title)} · ${S.pausedAt?"일시정지 중":`약 ${left}분 남음`}<div class="actions" style="margin-top:8px"><button class="btn sm" data-nav="exam">이어서 풀기</button><button class="btn ghost sm" id="quitExam">그만두기</button></div></div>` : ""}
+        <div class="home-stats">
+          <div class="sunken stat"><span>푼 횟수</span><b>${n}</b></div>
+          <div class="sunken stat"><span>평균 점수</span><b>${avg ?? "-"}</b></div>
+          <div class="sunken stat"><span>최고 점수</span><b>${best ?? "-"}</b></div>
+        </div>
+        ${last ? `<p class="small">최근: ${esc(new Date(last.at).toLocaleDateString("ko-KR",{month:"numeric",day:"numeric"}))} · ${esc(last.taskTitle)} · <b>${esc(last.total)}점</b></p>` : `<p class="small">아직 푼 문제가 없어요. '새 모의고사'에서 시작해 보세요.</p>`}
+        ${hasSettings() && typeof getKey === "function" && !getKey() ? `<div class="notice pen">AI 채팅·채점을 쓰려면 '설정'에서 Claude API 키를 넣어 주세요.</div>` : ""}
+        <div class="actions"><button class="btn" data-nav="setup">새 모의고사 시작</button></div>
+      </div>
+    </section>
+  </div>`;
+}
+
+function histRow(h, i){
+  const d = new Date(h.at);
+  return `<tr>
+    <td class="n">${esc(d.toLocaleDateString("ko-KR",{year:"2-digit",month:"numeric",day:"numeric"}))}</td>
+    <td>${esc(h.taskTitle)}<div class="muted small">${esc(TRACKS[h.track]?.name||"")} · ${h.env==="builtin"?`AI ${esc(LEVELS[h.aiLevel]?.name||"중")} · 질문 ${esc(h.prompts??0)}회`:"내 도구"}${h.tests?` · 테스트 ${esc(h.tests)}`:""}</div></td>
+    <td class="n">${esc(h.minutesUsed)}/${esc(h.minutesLimit)}분</td>
+    <td class="n s">${esc(h.total)}</td>
+    <td class="n">${reportAvailable(h) ? `<button class="btn sm" data-report="${i}">보기</button>` : `<span class="muted small">없음</span>`}</td></tr>`;
+}
+function viewHistoryPage(){
+  const tf = S.histTrack || "all";
+  const list = history.map((h,i)=>[h,i]).filter(([h])=>tf==="all" || h.track===tf);
+  const filt = [["all","전체"], ...Object.entries(TRACKS).map(([k,t])=>[k,t.name])].map(([k,l])=>`<button class="choice" data-htrack="${k}" aria-pressed="${tf===k}" style="padding:4px 10px"><b style="font-size:14px">${esc(l)}</b></button>`).join("");
+  const byCrit = {};
+  list.forEach(([h])=>Object.entries(h.criteria||{}).forEach(([k,v])=>{ (byCrit[k]=byCrit[k]||[]).push(+v||0); }));
+  const critAvg = CRITERIA.map(c=>{ const a=byCrit[c.name]; return a&&a.length ? { c, v: a.reduce((x,y)=>x+y,0)/a.length } : null; }).filter(Boolean);
+  const weakest = critAvg.length ? critAvg.slice().sort((a,b)=>a.v/a.c.max - b.v/b.c.max)[0] : null;
+  return `<div class="qhead"><h1 class="page-title">이전 기록</h1></div>
+  <section class="section"><h2>보기</h2><div class="actions">${filt}</div></section>
+  ${critAvg.length ? `<section class="section"><h2>항목별 평균 ${list.length}회</h2>
+    <div class="crit">${critAvg.map(({c,v})=>`<div class="crow"><div class="crow-top"><b>${esc(c.name)}</b><span>${v.toFixed(1)}/${c.max}</span></div><div class="bar"><i style="width:${Math.max(0,Math.min(100,v/c.max*100))}%"></i></div></div>`).join("")}</div>
+    ${weakest ? `<p class="small">가장 약한 항목은 <b>${esc(weakest.c.name)}</b>이에요. ${esc(weakest.c.desc)}</p>` : ""}</section>` : ""}
+  <section class="section"><h2>기록 ${list.length}개</h2>
+    ${list.length ? `<div class="tablewrap"><table class="hist"><thead><tr><th>날짜</th><th>문제</th><th style="text-align:right">시간</th><th style="text-align:right">점수</th><th style="text-align:right">보고서</th></tr></thead><tbody>${list.map(([h,i])=>histRow(h,i)).join("")}</tbody></table></div>` : `<p class="muted small">아직 기록이 없어요.</p>`}
+    <p class="muted small">${typeof siteHistoryNote==="function" ? siteHistoryNote() : (dbApi?"기록은 내 계정에만 저장돼요.":"기록은 이 브라우저에만 저장돼요.")}</p>
+  </section>`;
+}
+
+function viewReports(){
+  const list = history.map((h,i)=>[h,i]).filter(([h])=>reportAvailable(h));
+  return `<div class="qhead"><h1 class="page-title">보고서 열람</h1></div>
+  <section class="section"><h2>보고서 ${list.length}개</h2>
+    ${list.length ? `<ul class="replist">${list.map(([h,i])=>`<li><button class="repitem" data-report="${i}">
+        <span class="repicon" aria-hidden="true">${ICONS.reports}</span>
+        <span class="reptext"><b>${esc(h.taskTitle)}</b><span class="muted small">${esc(new Date(h.at).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}))} · ${esc(TRACKS[h.track]?.name||"")}${h.tests?` · 테스트 ${esc(h.tests)}`:""}</span></span>
+        <span class="repscore">${esc(h.total)}점</span></button></li>`).join("")}</ul>`
+      : `<p class="muted small">아직 보고서가 없어요. 문제를 풀고 채점하면 보고서가 생겨요.</p>`}
+  </section>`;
+}
+
+function viewReport(){
+  const h = S.reportRec;
+  if(!h) return viewReports();
+  const st = S.reportState || {};
+  const body = st.loading ? `<p class="muted">보고서를 불러오는 중이에요.</p>`
+    : st.error ? `<div class="notice pen">${esc(st.error)}</div>`
+    : `<article class="md">${mdToHtml(st.md || "")}</article>`;
+  const extra = typeof siteReportActions === "function" ? siteReportActions(h, st) : "";
+  return `<div class="actions"><button class="btn ghost sm" data-nav="reports">← 보고서 목록</button>${extra}</div>
+  <section class="section report-win"><h2>${esc(h.taskTitle)} · ${esc(h.total)}점</h2>${body}</section>`;
+}
+
+/* ───────── 보고서 저장·불러오기 ───────── */
+const REPORT_STORE = "vibe-mock-reports-v1";   // 계정·GitHub 저장이 없을 때 이 브라우저에 남기는 보고서
+const REPORT_KEEP = 30;                          // 브라우저에 남길 최근 보고서 수. 크면 저장 공간을 많이 씀
+function readLocalReports(){ try{ return JSON.parse(localStorage.getItem(REPORT_STORE)||"{}"); }catch(e){ return {}; } }
+function reportAvailable(h){ return !!(h && (h.report || h.hasReport || readLocalReports()[h.id])); }
+async function storeReport(rec, md){
+  if(dbApi && uid){
+    try{ await dbApi.doc(`data/users/${uid}/meta/reports`).collection("items").doc(rec.id).set({ md: md.slice(0, 240000), at: rec.at }); rec.hasReport = true; return; }
+    catch(e){ /* 계정 저장이 안 되면 브라우저에 남김 */ }
+  }
+  try{
+    const all = readLocalReports(); all[rec.id] = md;
+    const keep = Object.keys(all).sort().slice(-REPORT_KEEP); const out = {}; keep.forEach(k=>out[k]=all[k]);
+    localStorage.setItem(REPORT_STORE, JSON.stringify(out)); rec.hasReport = true;
+  }catch(e){}
+}
+async function loadReport(h){
+  if(typeof siteLoadReport === "function" && h.report){ const md = await siteLoadReport(h); if(md) return md; }
+  if(dbApi && uid){
+    try{ const d = await dbApi.doc(`data/users/${uid}/meta/reports`).collection("items").doc(h.id).get(); if(d.exists) return d.data().md; }catch(e){}
+  }
+  const local = readLocalReports()[h.id];
+  if(local) return local;
+  throw new Error("이 기기에서 보고서를 찾지 못했어요.");
+}
+async function openReport(i){
+  const h = history[i]; if(!h) return;
+  S.reportRec = h; S.reportState = { loading:true }; go("report");
+  try{ S.reportState = { md: await loadReport(h) }; }
+  catch(e){ S.reportState = { error: (e && e.message) || "보고서를 불러오지 못했어요." }; }
+  if(S.view === "report") render();
+}
+
+/* 보고서 마크다운을 화면용 HTML로 (제목·목록·표·코드·인용·굵게만) */
+function mdInline(t){
+  return esc(t).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+}
+function mdToHtml(md){
+  const L = md.replace(/\r/g,"").split("\n"); const out = []; let i = 0;
+  while(i < L.length){
+    const line = L[i];
+    const fence = line.match(/^(`{3,}|~{3,})/);
+    if(fence){ const f = fence[1]; const buf = []; i++; while(i < L.length && !L[i].startsWith(f)) buf.push(L[i++]); i++; out.push(`<pre>${esc(buf.join("\n"))}</pre>`); continue; }
+    const hm = line.match(/^(#{1,4})\s+(.*)$/);
+    if(hm){ const lv = Math.min(4, hm[1].length + 1); out.push(`<h${lv}>${mdInline(hm[2])}</h${lv}>`); i++; continue; }
+    if(/^\|.*\|\s*$/.test(line)){
+      const rows = []; while(i < L.length && /^\|.*\|\s*$/.test(L[i])) rows.push(L[i++]);
+      const cells = r => r.trim().slice(1,-1).split(/(?<!\\)\|/).map(c=>c.trim().replace(/\\\|/g,"|"));
+      const head = cells(rows[0]); const bodyRows = rows.slice(rows[1] && /^\|[\s:|-]+\|$/.test(rows[1].trim()) ? 2 : 1);
+      out.push(`<div class="tablewrap"><table class="hist"><thead><tr>${head.map(c=>`<th>${mdInline(c)}</th>`).join("")}</tr></thead><tbody>${bodyRows.map(r=>`<tr>${cells(r).map(c=>`<td>${mdInline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`);
+      continue;
+    }
+    if(/^\s*-\s+/.test(line)){
+      const items = []; while(i < L.length && /^\s*-\s+/.test(L[i])) items.push(L[i++].replace(/^\s*-\s+/,""));
+      out.push(`<ul>${items.map(t=>{ const m=t.match(/^\[( |x)\]\s+(.*)$/); return m ? `<li class="task">${m[1]==="x"?"☑":"☐"} ${mdInline(m[2])}</li>` : `<li>${mdInline(t)}</li>`; }).join("")}</ul>`);
+      continue;
+    }
+    if(/^>\s?/.test(line)){ const buf=[]; while(i < L.length && /^>\s?/.test(L[i])) buf.push(L[i++].replace(/^>\s?/,"")); out.push(`<blockquote>${mdInline(buf.join(" "))}</blockquote>`); continue; }
+    if(!line.trim()){ i++; continue; }
+    const buf = []; while(i < L.length && L[i].trim() && !/^(#{1,4}\s|\||\s*-\s|>|`{3,}|~{3,})/.test(L[i])) buf.push(L[i++]);
+    out.push(`<p>${mdInline(buf.join("\n")).replace(/\n/g,"<br>")}</p>`);
+  }
+  return out.join("\n");
+}
+
+/* 시험 그만두기 확인 창 */
+function askQuit(){
+  if(document.getElementById("quitBox")) return;
+  const box = document.createElement("div");
+  box.className = "overlay"; box.id = "quitBox";
+  box.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="quitTitle"><h2 id="quitTitle">모의고사 그만두기</h2>
+    <p>지금 문제를 그만둘까요? 쓰던 코드와 AI 대화는 사라지고 기록도 남지 않아요.</p>
+    <div class="actions"><button class="btn" id="quitYes">그만두기</button><button class="btn ghost" id="quitNo">계속 풀기</button></div></div>`;
+  document.body.appendChild(box);
+  box.querySelector("#quitNo").focus();
+  box.addEventListener("click", e => {
+    const id = e.target.closest("button")?.id;
+    if(id === "quitNo"){ box.remove(); }
+    if(id === "quitYes"){
+      box.remove();
+      if(typeof killWorker === "function") killWorker();
+      Object.assign(S, { task:null, startedAt:null, pausedAt:null, pausedMs:0, finishedAt:null, chat:[], files:null, code:"", run:"", readme:"", log:"", result:null, hiddenRes:null });
+      go("home");
+    }
+  });
 }
 
 /* ───────── 화면: 시험 (코딩 테스트 플랫폼 모양) ───────── */
@@ -1294,8 +1530,9 @@ function viewExam(){
   return `<div class="ide">
   <header class="titlebar"><span class="tb-icon" aria-hidden="true"></span><span>바이브코딩 모의고사</span><span class="crumb">— ${esc(S.task.title)}</span><span class="grow"></span>${TB_BTNS}</header>
   <div class="menubar">
-    <span class="m"><u>파</u>일</span><span class="m"><u>실</u>행</span><span class="m"><u>테</u>스트</span><span class="m"><u>도</u>움말</span>
+    <button class="m" data-nav="home" title="시험은 그대로 두고 홈으로"><u>홈</u></button><button class="m opt" data-nav="history"><u>기</u>록</button><button class="m opt" data-nav="reports"><u>보</u>고서</button>
     <span class="grow"></span>
+    <button class="btn ghost sm" id="quitExam">나가기</button>
     <span class="timer" id="clock">${fmt(limitMs()-elapsed())}</span>
     ${started ? `<button class="btn ghost sm" id="pause">${S.pausedAt?"계속":"일시정지"}</button><button class="btn sm" id="toSubmit">제출(S)</button>` : ""}
   </div>
@@ -1545,7 +1782,7 @@ function viewResult(){
   ${R.questions?.length?`<div class="block"><h3>면접 꼬리질문 연습</h3>${list(R.questions,"q")}</div>`:""}
   <p class="status" id="saveStatus">${S.saved?"기록에 저장했어요.":""}</p>
   ${typeof siteResultActions==="function" ? siteResultActions() : ""}
-  <div class="actions"><button class="btn" id="again">새 문제 풀기</button><button class="btn ghost" id="retry">같은 문제 다시</button></div>`;
+  <div class="actions"><button class="btn" id="again">새 문제 풀기</button><button class="btn ghost" id="retry">같은 문제 다시</button><button class="btn ghost" id="goHome">홈으로</button></div>`;
 }
 
 /* ───────── 렌더 ───────── */
@@ -1556,12 +1793,21 @@ function render(){
     initEditor(); bindResizers(); updateClock(); scrollMsgs(); tick=setInterval(updateClock,500);
   } else {
     $app.className="page";
-    const body = S.view==="setup" ? viewSetup() : S.view==="submit" ? viewSubmit() : S.view==="self" ? viewSelf() : viewResult();
-    $app.innerHTML = topbar() + `<main class="wrap">${body}</main>`;
+    const V = { home:viewHome, setup:viewSetup, history:viewHistoryPage, reports:viewReports, report:viewReport, settings:viewSettings, submit:viewSubmit, self:viewSelf, result:viewResult };
+    if(!V[S.view] || (["submit","self","result"].includes(S.view) && !S.task)) S.view = "home";
+    const body = V[S.view]();
+    const menu = ["submit","self"].includes(S.view) ? "" : pageMenu();
+    $app.innerHTML = topbar() + menu + `<main class="wrap${S.view==="home"?" wide":""}">${body}</main>`;
   }
   saveDraft();
 }
 function go(view){ S.view=view; render(); window.scrollTo({top:0}); }
+function viewSettings(){ return `<div class="qhead"><h1 class="page-title">설정</h1></div>` + (hasSettings() ? siteSettings() : ""); }
+function nav(v){
+  if(v==="exam"){ if(S.task) go("exam"); return; }
+  if(v==="settings" && !hasSettings()) v="home";
+  go(v);
+}
 function updateCount(){ const c=document.getElementById("codeCount"); if(c && S.files) c.textContent = `${S.files.length}개 파일 · ${S.code.length.toLocaleString()}자`; }
 function scrollMsgs(){ const m=document.getElementById("msgs"); if(m) m.scrollTop=m.scrollHeight; }
 // 휴대폰에서만 쓰는 탭 (넓은 화면은 세 칸이 다 보임)
@@ -1833,6 +2079,7 @@ async function finish(){
     minutesLimit:S.minutes, minutesUsed:R.minutesUsed, total:R.total, mode:R.mode, prompts:R.prompts, tokens:R.tokens, leaves:R.leaves,
     criteria:Object.fromEntries(R.criteria.map(c=>[c.name,c.score])) };
   const ss=document.getElementById("saveStatus");
+  try{ await storeReport(rec, buildReport(rec)); }catch(e){}
   try{
     if(dbApi && uid){ await dbApi.collection("data/users/"+uid).doc(rec.id).set(rec); }
     else { const h=readLocalHist(); h.unshift(rec); try{ localStorage.setItem(LOCAL_HIST_KEY, JSON.stringify(h.slice(0,100))); }catch(e){} history=h; }
@@ -1901,6 +2148,9 @@ $app.addEventListener("click", e => {
   if(closeX){ closeFile(+closeX.dataset.close); return; }
   const b = e.target.closest("button"); if(!b) return;
   if(typeof siteClick==="function" && siteClick(b)) return;
+  if(b.dataset.nav){ nav(b.dataset.nav); return; }
+  if(b.dataset.report!==undefined){ openReport(+b.dataset.report); return; }
+  if(b.dataset.htrack){ S.histTrack=b.dataset.htrack; render(); return; }
   if(b.dataset.file){ switchFile(+b.dataset.file); return; }
   if(b.dataset.ctab){ setCtab(b.dataset.ctab); return; }
   if(b.dataset.track){ S.track=b.dataset.track; render(); return; }
@@ -1943,6 +2193,8 @@ $app.addEventListener("click", e => {
     case "selfGrade": selfStart(); break;
     case "selfDone": selfFinish(); break;
     case "again": S.task=null; S.result=null; go("setup"); break;
+    case "goHome": S.task=null; S.result=null; go("home"); break;
+    case "quitExam": askQuit(); break;
     case "retry": beginTask(S.task, S.source); break;
   }
 });
@@ -2107,7 +2359,7 @@ function keySettings(){
     <p class="status" id="keyStatus"></p></section>`;
 }
 
-const GH_BUTTONS = ["ghSave","ghDel","ghTest","repDown","repSave"];
+const GH_BUTTONS = ["ghSave","ghDel","ghTest","repDown","repDown2","repSave"];
 function siteClick(b){
   if(GH_BUTTONS.includes(b.id)){ ghClick(b); return true; }
   const st = document.getElementById("keyStatus");
@@ -2201,13 +2453,13 @@ function siteReportUrl(path){ return `https://github.com/${ghRepo()}/blob/main/$
 function siteHistoryNote(){ return ghReady() ? `기록과 보고서는 GitHub 저장소 ${esc(ghRepo())}에 저장돼요. 제목을 누르면 보고서가 열려요.` : "기록은 이 브라우저에만 저장돼요. 시작 화면에서 GitHub 저장소를 연결하면 어느 기기에서든 남아요."; }
 async function ghLoadHistory(){
   if(!ghReady()) return;
-  try{ const idx = await ghReadIndex(); history = idx.list; if(S.view === "setup") render(); }
-  catch(e){ ghState.status = ghErr(e); if(S.view === "setup") render(); }
+  try{ const idx = await ghReadIndex(); history = idx.list; if(["home","history","reports"].includes(S.view)) render(); }
+  catch(e){ ghState.status = ghErr(e); if(["home","settings"].includes(S.view)) render(); }
 }
 
-function downloadReport(){
-  const rec = ghState.lastRec || S.lastRec; if(!rec) return;
-  const md = buildReport(rec);
+function downloadReport(md, rec){
+  rec = rec || ghState.lastRec || S.lastRec; if(!rec) return;
+  md = md || buildReport(rec);
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([md], { type:"text/markdown;charset=utf-8" }));
   a.download = (rec.report || reportPath(rec)).split("/").pop();
@@ -2279,7 +2531,18 @@ async function ghClick(b){
     return;
   }
   if(b.id === "repDown"){ downloadReport(); return; }
+  if(b.id === "repDown2"){ if(S.reportState && S.reportState.md) downloadReport(S.reportState.md, S.reportRec); return; }
   if(b.id === "repSave"){ saveToGitHub(); return; }
+}
+
+/* 보고서 열람: GitHub 저장소에서 읽기 */
+async function siteLoadReport(h){
+  if(!ghReady() || !h.report) return null;
+  const f = await gh(`/repos/${ghRepo()}/contents/${ghPathUrl(h.report)}`, { allow404:true });
+  return f ? unb64(f.content) : null;
+}
+function siteReportActions(h, st){
+  return `${st && st.md ? `<button class="btn ghost sm" id="repDown2">내려받기 (.md)</button>` : ""}${h.report && ghReady() ? `<a class="btn ghost sm" href="${esc(siteReportUrl(h.report))}" target="_blank" rel="noopener" style="text-decoration:none">GitHub에서 열기</a>` : ""}`;
 }
 
 /* ───────── 시작 ───────── */
