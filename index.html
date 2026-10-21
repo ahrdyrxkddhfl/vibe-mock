@@ -1918,7 +1918,15 @@ function sampleErr(e, fallback){
   if(c==="no_key") return "AI를 쓰려면 홈의 설정에서 Claude API 키를 넣어 주세요.";
   if(c==="bad_key") return "API 키가 맞지 않아요. 홈의 설정에서 키를 다시 넣어 주세요.";
   if(c==="network") return "Claude API에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.";
-  if(c==="bad_request") return "요청이 거절됐어요" + (e.message ? ": " + e.message : ".");
+  if(c==="bad_request") return "요청이 거절됐어요" + (e.message ? ": " + e.message : ".") + (/credit|balance/i.test(e.message||"") ? " (Anthropic 콘솔 Billing에서 크레딧을 충전해야 해요.)" : "");
+  if(c==="invalid_json") return e.truncated ? "AI 답이 너무 길어 중간에 잘렸어요. 다시 눌러 주세요." : "AI 답이 정해진 형식(JSON)에 맞지 않았어요. 다시 눌러 주세요.";
+  if(c==="empty_completion") return "AI가 빈 답을 보냈어요. 다시 눌러 주세요.";
+  if(c==="upstream_error"){
+    const st = e.status, m = e.message || "";
+    if(st===404) return `모델(${e.model||"?"})을 찾지 못했어요` + (m ? ": " + m : ".");
+    if(st===529 || /overload/i.test(m + (e.errType||""))) return "Claude 서버가 붐벼요. 잠시 뒤 다시 눌러 주세요.";
+    if(st || m) return `Claude API 오류${st ? " " + st : ""}${m ? ": " + m : ""}`;
+  }
   return fallback;
 }
 
@@ -1949,7 +1957,14 @@ ${JSON.stringify(exObj)}
 다음 JSON 객체 하나만 답해:
 {"title":string,"scenario":string,${api?'"api":string(줄바꿈은 \\n),':''}"must":[4~5개 string],"nice":[2개 string],"deliver":string,"sample":string(입력 예시, 줄바꿈은 \\n),"hidden":[4개 string]${api?',"tests":string(pytest 코드, 줄바꿈은 \\n)':''}}`;
   try{
-    const t = await sampleFn.json(prompt, { cache:false, modelTier:"complex" });
+    let t;
+    try{ t = await sampleFn.json(prompt, { cache:false, modelTier:"complex" }); }
+    catch(e1){
+      // 성능 상 모델이 실패하면(형식 오류·서버 오류) 중 모델로 한 번만 다시 시도
+      if(!["invalid_json","upstream_error","empty_completion"].includes(e1 && e1.code)) throw e1;
+      st.className = "status"; st.textContent = "한 번 더 만드는 중이에요.";
+      t = await sampleFn.json(prompt, { cache:false, modelTier:"default" });
+    }
     if(!(t && typeof t.title==="string" && Array.isArray(t.must) && t.must.length && Array.isArray(t.hidden))) throw {code:"invalid_json"};
     const tests = api && typeof t.tests==="string" && /def test_/.test(t.tests) ? t.tests : "";
     beginTask({ id:"gen-"+Date.now(), track:S.track, type: tests ? "api" : "data", title:t.title, scenario:String(t.scenario||""),
@@ -2251,6 +2266,7 @@ document.addEventListener("visibilitychange", () => {
 const KEY_STORE = "vibe-mock-anthropic-key";
 const MODELS = { complex:"claude-opus-5-5", default:"claude-sonnet-5-5", quick:"claude-haiku-5-5" };  // AI 성능 상·중·하
 const MAX_TOKENS = 8000;   // 한 번 답할 때 최대 출력 토큰. 작으면 긴 코드가 잘리고, 크면 답이 길어질 때 요금이 늘어요
+const MAX_TOKENS_COMPLEX = 16000;  // 문제 출제·채점(성능 상)용. 숨은 테스트 코드까지 한 번에 써야 해서 더 길게 둠
 function getKey(){ try{ return localStorage.getItem(KEY_STORE) || ""; }catch(e){ return ""; } }
 function setKey(k){ try{ if(k) localStorage.setItem(KEY_STORE, k); else localStorage.removeItem(KEY_STORE); }catch(e){} }
 
@@ -2269,7 +2285,8 @@ async function callClaude(input, opts = {}){
   const key = getKey();
   if(!key) throw { code:"no_key" };
   const tier = opts.modelTier || "default";
-  const body = { model: MODELS[tier] || MODELS.default, max_tokens: MAX_TOKENS, stream: true, messages: toMessages(input) };
+  const maxTokens = opts.maxTokens || (tier === "complex" ? MAX_TOKENS_COMPLEX : MAX_TOKENS);
+  const body = { model: MODELS[tier] || MODELS.default, max_tokens: maxTokens, stream: true, messages: toMessages(input) };
   let res;
   try{
     res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -2286,7 +2303,7 @@ async function callClaude(input, opts = {}){
     try{ message = (await res.json()).error?.message || ""; }catch(e){}
     const code = (res.status === 401 || res.status === 403) ? "bad_key"
       : res.status === 429 ? "rate_limited" : res.status === 400 ? "bad_request" : "upstream_error";
-    throw { code, message, status: res.status };
+    throw { code, message, status: res.status, model: body.model };
   }
   // 스트리밍 응답(SSE)을 읽으며 글자가 나오는 대로 화면에 보여 줌
   const reader = res.body.getReader(), dec = new TextDecoder();
@@ -2312,25 +2329,46 @@ async function callClaude(input, opts = {}){
           if(ev.usage?.output_tokens != null) usage.output = ev.usage.output_tokens;
           if(ev.delta?.stop_reason) stop = ev.delta.stop_reason;
         }
-        else if(ev.type === "error") throw { code:"upstream_error", message: ev.error?.message, text, usage };
+        else if(ev.type === "error") throw { code:"upstream_error", message: ev.error?.message, errType: ev.error?.type, model: body.model, text, usage };
       }
     }
   }catch(e){
     if(e && e.name === "AbortError") throw { code:"cancelled", text, usage };
     if(e && e.code) throw e;
-    throw { code:"upstream_error", text, usage };
+    throw { code:"upstream_error", message: "응답을 읽다가 끊겼어요", model: body.model, text, usage };
   }
   if(!text.trim()) throw { code:"empty_completion", usage };
   return { text, truncated: stop === "max_tokens", modelTierApplied: tier, usage };
 }
 
+// 문자열 안에 줄바꿈·탭이 그대로 들어간 JSON(코드를 담을 때 흔함)을 \n 등으로 바꿔 줌
+function repairJson(s){
+  let out = "", inStr = false, escp = false;
+  for(const ch of s){
+    if(inStr){
+      if(escp){ escp = false; out += ch; }
+      else if(ch === "\\"){ escp = true; out += ch; }
+      else if(ch === '"'){ inStr = false; out += ch; }
+      else if(ch === "\n") out += "\\n";
+      else if(ch === "\r") out += "\\r";
+      else if(ch === "\t") out += "\\t";
+      else out += ch;
+    } else { if(ch === '"') inStr = true; out += ch; }
+  }
+  return out;
+}
+function tryParse(s){
+  try{ return { ok:true, v:JSON.parse(s) }; }catch(e){}
+  try{ return { ok:true, v:JSON.parse(repairJson(s)) }; }catch(e){}
+  return { ok:false };
+}
 function parseJsonLoose(t){
-  try{ return JSON.parse(t); }catch(e){}
+  let r = tryParse(t); if(r.ok) return r.v;
   const f = t.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if(f){ try{ return JSON.parse(f[1]); }catch(e){} }
+  if(f){ r = tryParse(f[1]); if(r.ok) return r.v; }
   const starts = ["{","["].map(c => t.indexOf(c)).filter(i => i >= 0);
   const a = starts.length ? Math.min(...starts) : -1, b = Math.max(t.lastIndexOf("}"), t.lastIndexOf("]"));
-  if(a >= 0 && a < b){ try{ return JSON.parse(t.slice(a, b + 1)); }catch(e){} }
+  if(a >= 0 && a < b){ r = tryParse(t.slice(a, b + 1)); if(r.ok) return r.v; }
   throw { code:"invalid_json", text:t };
 }
 
@@ -2339,7 +2377,7 @@ function makeSample(){
   const f = (input, opts = {}) => callClaude(input, opts);
   f.json = async (input, opts = {}) => {
     const r = await callClaude(typeof input === "string" ? input + "\n\n다른 설명 없이 JSON 값 하나만 답해." : input, opts);
-    if(r.truncated) throw { code:"invalid_json", text:r.text };
+    if(r.truncated) throw { code:"invalid_json", truncated:true, text:r.text };
     return parseJsonLoose(r.text);
   };
   return f;
@@ -2370,12 +2408,19 @@ function siteClick(b){
   }
   if(b.id === "keyDel"){ setKey(""); sampleFn = null; S.env = "own"; render(); return true; }
   if(b.id === "keyTest"){
-    st.className = "status"; st.textContent = "확인 중이에요.";
+    st.className = "status"; st.textContent = "성능 상·중·하 모델을 하나씩 확인 중이에요.";
     b.disabled = true;
-    callClaude("ok라고만 답해.", { modelTier:"quick" })
-      .then(() => { st.textContent = "연결됐어요."; })
-      .catch(e => { st.className = "status err"; st.textContent = sampleErr(e, "연결하지 못했어요."); })
-      .finally(() => { b.disabled = false; });
+    (async () => {
+      const names = { complex:"상", default:"중", quick:"하" }, lines = [];
+      let bad = 0;
+      for(const tier of ["complex","default","quick"]){
+        try{ await callClaude("ok라고만 답해.", { modelTier:tier, maxTokens:5 }); lines.push(`${names[tier]}(${MODELS[tier]}): 됨`); }
+        catch(e){ bad++; lines.push(`${names[tier]}(${MODELS[tier]}): 안 됨 — ${sampleErr(e, "연결하지 못했어요.")}`); }
+        st.textContent = lines.join("\n");
+      }
+      st.className = bad ? "status err" : "status";
+      st.style.whiteSpace = "pre-line";
+    })().finally(() => { b.disabled = false; });
     return true;
   }
   return false;
