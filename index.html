@@ -1019,13 +1019,13 @@ function viewHistory(){
   if(!history.length) return `<section class="section"><h2>지난 기록</h2><p class="muted small">아직 푼 문제가 없어요. 제출하면 점수와 걸린 시간이 여기에 쌓여요.</p></section>`;
   const rows = history.slice(0,20).map(h => `<tr>
       <td class="n">${esc(new Date(h.at).toLocaleDateString("ko-KR",{month:"numeric",day:"numeric"}))}</td>
-      <td>${esc(h.taskTitle)}<div class="muted small">${esc(TRACKS[h.track]?.name||"")} · ${h.env==="builtin"?`시험장 방식 · AI ${esc(LEVELS[h.aiLevel]?.name||"중")} · 질문 ${esc(h.prompts??0)}회`:"내 도구"}${h.tests?` · 테스트 ${esc(h.tests)}`:""}</div></td>
+      <td>${h.report && typeof siteReportUrl==="function" ? `<a href="${esc(siteReportUrl(h.report))}" target="_blank" rel="noopener">${esc(h.taskTitle)}</a>` : esc(h.taskTitle)}<div class="muted small">${esc(TRACKS[h.track]?.name||"")} · ${h.env==="builtin"?`시험장 방식 · AI ${esc(LEVELS[h.aiLevel]?.name||"중")} · 질문 ${esc(h.prompts??0)}회`:"내 도구"}${h.tests?` · 테스트 ${esc(h.tests)}`:""}</div></td>
       <td class="n">${esc(h.minutesUsed)}/${esc(h.minutesLimit)}분</td>
       <td class="n s">${esc(h.total)}</td></tr>`).join("");
   const avg = Math.round(history.reduce((a,h)=>a+(+h.total||0),0)/history.length);
   return `<section class="section"><h2>지난 기록 <span class="muted small" style="font-weight:400">· ${history.length}회, 평균 ${avg}점</span></h2>
     <div class="tablewrap"><table class="hist"><thead><tr><th>날짜</th><th>문제</th><th style="text-align:right">시간</th><th style="text-align:right">점수</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="muted small">${dbApi?"기록은 내 계정에만 저장돼요.":"기록은 이 브라우저에만 저장돼요."}</p></section>`;
+    <p class="muted small">${typeof siteHistoryNote==="function" ? siteHistoryNote() : (dbApi?"기록은 내 계정에만 저장돼요.":"기록은 이 브라우저에만 저장돼요.")}</p></section>`;
 }
 
 /* ───────── 화면: 시험 ───────── */
@@ -1333,6 +1333,7 @@ function viewResult(){
   ${R.fixes?.length?`<div class="block"><h3>다음에 고칠 점</h3>${list(R.fixes,"fix")}</div>`:""}
   ${R.questions?.length?`<div class="block"><h3>면접 꼬리질문 연습</h3>${list(R.questions,"q")}</div>`:""}
   <p class="status" id="saveStatus">${S.saved?"기록에 저장했어요.":""}</p>
+  ${typeof siteResultActions==="function" ? siteResultActions() : ""}
   <div class="actions"><button class="btn" id="again">새 문제 풀기</button><button class="btn ghost" id="retry">같은 문제 다시</button></div>`;
 }
 
@@ -1600,19 +1601,65 @@ async function finish(){
   if(!S.finishedAt) S.finishedAt = Date.now();
   S.saved=false; go("result");
   const R=S.result;
-  const rec = { at:new Date().toISOString(), track:S.task.track, taskId:S.task.id, taskTitle:S.task.title, env:R.env, aiLevel:S.aiLevel, runs:S.runs, tests:R.tests&&!R.tests.error?`${R.tests.passed}/${R.tests.total}`:null,
+  const rec = { id:"a"+Date.now(), at:new Date().toISOString(), track:S.task.track, taskId:S.task.id, taskTitle:S.task.title, env:R.env, aiLevel:S.aiLevel, runs:S.runs, tests:R.tests&&!R.tests.error?`${R.tests.passed}/${R.tests.total}`:null,
     minutesLimit:S.minutes, minutesUsed:R.minutesUsed, total:R.total, mode:R.mode, prompts:R.prompts, tokens:R.tokens, leaves:R.leaves,
     criteria:Object.fromEntries(R.criteria.map(c=>[c.name,c.score])) };
   const ss=document.getElementById("saveStatus");
   try{
-    if(dbApi && uid){ await dbApi.collection("data/users/"+uid).doc("a"+Date.now()).set(rec); }
+    if(dbApi && uid){ await dbApi.collection("data/users/"+uid).doc(rec.id).set(rec); }
     else { const h=readLocalHist(); h.unshift(rec); try{ localStorage.setItem(LOCAL_HIST_KEY, JSON.stringify(h.slice(0,100))); }catch(e){} history=h; }
     S.saved=true; if(ss) ss.textContent="기록에 저장했어요."; saveDraft();
+    if(typeof siteAfterFinish==="function") siteAfterFinish(rec);
   }catch(e){
     if(ss){ ss.className="status err"; ss.textContent = e&&e.code==="quota_exceeded" ? "기록 저장 공간이 꽉 찼어요." : "기록을 저장하지 못했어요. 결과는 이 화면에 남아 있어요."; }
   }
 }
 function readLocalHist(){ try{ return JSON.parse(localStorage.getItem(LOCAL_HIST_KEY)||"[]"); }catch(e){ return []; } }
+
+/* ───────── 보고서 (마크다운) ───────── */
+function buildReport(rec){
+  const T=S.task, R=S.result;
+  const fence = s => "````\n" + String(s||"(없음)").replace(/\s+$/,"") + "\n````";
+  const cell = s => String(s||"").replace(/\|/g,"\\|").replace(/\n+/g," ");
+  const d = new Date(rec.at);
+  const when = d.toLocaleString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+  const L = [];
+  L.push(`# ${T.title} · ${R.total}점`, "");
+  L.push(`- 날짜: ${when}`);
+  L.push(`- 직무: ${TRACKS[T.track]?.name||""} · 유형: ${T.type==="api"?"API 구현":"데이터·분석형"} · 출처: ${S.source==="ai"?"AI 출제":"문제은행"}`);
+  L.push(`- 환경: ${R.env==="builtin"?`시험장 방식 · AI 성능 ${LEVELS[S.aiLevel].name}`:"내 도구"} · 채점: ${R.mode==="ai"?"AI 채점":"직접 채점"}`);
+  L.push(`- 사용 시간: ${R.minutesUsed}분 / ${S.minutes}분`);
+  if(R.env==="builtin") L.push(`- 질문 ${R.prompts}회 · ${R.realTokens?"토큰":"토큰(추정)"} ${R.tokens.toLocaleString()} / 목표 ${tokenTarget().toLocaleString()} · 화면 이탈 ${R.leaves}회`);
+  L.push(`- 화면 안 파이썬 실행 ${S.runs}회`, "");
+  L.push("## 점수", "", "| 항목 | 점수 | 코멘트 |", "|---|---|---|");
+  R.criteria.forEach(c=>L.push(`| ${c.name} | ${c.score}/${c.max} | ${cell(c.comment)} |`));
+  L.push(`| **합계** | **${R.total}/100** | |`, "");
+  if(R.summary) L.push(`> ${R.summary}`, "");
+  if(R.tests){
+    if(R.tests.error) L.push("## 숨은 테스트", "", `돌리지 못함: ${R.tests.error}`, "");
+    else { L.push(`## 숨은 테스트 ${R.tests.passed}/${R.tests.total}`, ""); R.tests.rows.forEach(r=>L.push(`- ${r.ok?"○":"×"} ${r.desc}${!r.ok&&r.msg?` — ${cell(r.msg.split("\n").filter(Boolean).slice(-1)[0]||"").slice(0,160)}`:""}`)); L.push(""); }
+  } else if(R.hidden && R.hidden.length){
+    L.push("## 숨은 검증 항목", ""); R.hidden.forEach(h=>L.push(`- ${h.ok===true?"○":h.ok===false?"×":"?"} ${h.item}${h.note?` — ${h.note}`:""}`)); L.push("");
+  }
+  const sec = (title, arr) => { if(arr && arr.length){ L.push(`## ${title}`, ""); arr.forEach(x=>L.push(`- ${x}`)); L.push(""); } };
+  sec("프롬프트 첨삭", R.promptReview); sec("잘한 점", R.strengths); sec("다음에 고칠 점", R.fixes); sec("면접 꼬리질문", R.questions);
+  L.push("## 문제", "", T.scenario, "");
+  if(T.api) L.push("### API 명세", "", fence(T.api), "");
+  L.push("### 필수 요구사항", ""); T.must.forEach((m,i)=>L.push(`- [${S.done[i]?"x":" "}] ${m}`)); L.push("");
+  L.push("## 최종 코드", "", fence(S.code), "");
+  L.push("## README", "", S.readme.trim()||"(없음)", "");
+  L.push("## 실행·테스트 결과", "", fence(S.run), "");
+  if(R.env==="builtin"){
+    L.push("## AI 대화 기록", "");
+    S.chat.forEach((m,i)=>{
+      const t = m.at ? new Date(m.at).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"}) : "";
+      L.push(`### #${i} ${m.role==="user"?"나":"AI"} ${t}${m.attached?` (코드 ${m.attached}자 첨부)`:""}`, "", m.content, "");
+    });
+  } else {
+    L.push("## 프롬프트 기록", "", fence(S.log), "");
+  }
+  return L.join("\n");
+}
 
 async function copyText(t, btn){
   try{ await navigator.clipboard.writeText(t); btn.textContent="복사됨"; }
@@ -1794,7 +1841,8 @@ function makeSample(){
   return f;
 }
 
-function siteSettings(){
+function siteSettings(){ return keySettings() + ghSettings(); }
+function keySettings(){
   const k = getKey();
   if(k) return `<section class="section"><h2>Claude API 키</h2>
     <p class="small">이 브라우저에 키가 저장돼 있어요(끝자리 ${esc(k.slice(-4))}). AI에게 묻거나 채점할 때마다 이 키로 요금이 나가요. 성능 상은 Opus, 중은 Sonnet, 하는 Haiku 모델을 써요.</p>
@@ -1807,7 +1855,9 @@ function siteSettings(){
     <p class="status" id="keyStatus"></p></section>`;
 }
 
+const GH_BUTTONS = ["ghSave","ghDel","ghTest","repDown","repSave"];
 function siteClick(b){
+  if(GH_BUTTONS.includes(b.id)){ ghClick(b); return true; }
   const st = document.getElementById("keyStatus");
   if(b.id === "keySave"){
     const v = (document.getElementById("keyIn").value || "").trim();
@@ -1827,11 +1877,165 @@ function siteClick(b){
   return false;
 }
 
+/* ───────── GitHub 비공개 저장소에 보고서·기록 저장 (웹사이트 버전 전용) ─────────
+   토큰은 이 브라우저의 localStorage에만 저장해요. api.github.com 호출에만 써요. */
+const GH_TOKEN_STORE = "vibe-mock-gh-token";
+const GH_REPO_STORE = "vibe-mock-gh-repo";
+const GH_INDEX = "records/index.json";   // 기록 목록(최신순). 보고서 본문은 reports/ 아래 .md
+const pageOwner = (location.hostname.match(/^([^.]+)\.github\.io$/) || [])[1] || "";
+let ghState = { status:"", busy:false, lastRec:null, saved:null };
+
+function ghToken(){ try{ return localStorage.getItem(GH_TOKEN_STORE) || ""; }catch(e){ return ""; } }
+function ghRepo(){ try{ return localStorage.getItem(GH_REPO_STORE) || (pageOwner ? pageOwner + "/vibe-mock-records" : ""); }catch(e){ return ""; } }
+function ghSet(token, repo){ try{
+  if(token) localStorage.setItem(GH_TOKEN_STORE, token); else localStorage.removeItem(GH_TOKEN_STORE);
+  if(repo) localStorage.setItem(GH_REPO_STORE, repo); else localStorage.removeItem(GH_REPO_STORE);
+}catch(e){} }
+const ghReady = () => !!(ghToken() && ghRepo());
+
+async function gh(path, opts = {}){
+  const res = await fetch("https://api.github.com" + path, {
+    method: opts.method || "GET",
+    headers: { "Authorization":"Bearer " + ghToken(), "Accept":"application/vnd.github+json", "X-GitHub-Api-Version":"2022-11-28",
+               ...(opts.body ? { "Content-Type":"application/json" } : {}) },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  if(res.status === 404 && opts.allow404) return null;
+  if(!res.ok){
+    let msg = ""; try{ msg = (await res.json()).message || ""; }catch(e){}
+    throw { status: res.status, message: msg };
+  }
+  return res.status === 204 ? null : res.json();
+}
+// 한글이 깨지지 않게 UTF-8 ↔ base64
+const b64 = s => { const bytes = new TextEncoder().encode(s); let bin = ""; for(let i=0;i<bytes.length;i+=0x8000) bin += String.fromCharCode(...bytes.subarray(i,i+0x8000)); return btoa(bin); };
+const unb64 = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g,"")), c => c.charCodeAt(0)));
+const ghPathUrl = p => p.split("/").map(encodeURIComponent).join("/");
+function ghErr(e){
+  if(e && e.status === 401) return "GitHub 토큰이 맞지 않거나 만료됐어요.";
+  if(e && e.status === 403) return "토큰에 이 저장소 쓰기 권한이 없어요. Contents: Read and write로 만들었는지 확인해 주세요.";
+  if(e && e.status === 404) return "저장소를 찾지 못했어요. 이름과 토큰의 저장소 선택을 확인해 주세요.";
+  if(e && e.status === 409) return "다른 기기에서 동시에 저장했어요. 다시 저장을 눌러 주세요.";
+  return "GitHub에 연결하지 못했어요" + (e && e.message ? ": " + e.message : ".");
+}
+
+async function ghReadIndex(){
+  const f = await gh(`/repos/${ghRepo()}/contents/${GH_INDEX}`, { allow404:true });
+  return f ? { list: JSON.parse(unb64(f.content)), sha: f.sha } : { list: [], sha: null };
+}
+async function ghPut(path, text, message, sha){
+  return gh(`/repos/${ghRepo()}/contents/${ghPathUrl(path)}`, { method:"PUT", body:{ message, content:b64(text), ...(sha ? { sha } : {}) } });
+}
+function reportPath(rec){
+  const d = new Date(rec.at);
+  const pad = n => String(n).padStart(2,"0");
+  const day = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const slug = rec.taskTitle.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 40);
+  return `reports/${day.slice(0,7)}/${day}_${pad(d.getHours())}${pad(d.getMinutes())}_${slug}_${rec.total}점.md`;
+}
+async function ghSaveRecord(rec, md){
+  const path = rec.report || reportPath(rec);
+  const existing = await gh(`/repos/${ghRepo()}/contents/${ghPathUrl(path)}`, { allow404:true });
+  await ghPut(path, md, `보고서: ${rec.taskTitle} ${rec.total}점`, existing && existing.sha);
+  const entry = { ...rec, report: path };
+  for(let attempt = 0; attempt < 2; attempt++){   // 목록 파일이 그사이 바뀌었으면 한 번만 다시 시도
+    const idx = await ghReadIndex();
+    const list = [entry, ...idx.list.filter(x => x.id !== rec.id)].slice(0, 1000);
+    try{ await ghPut(GH_INDEX, JSON.stringify(list, null, 1), `기록: ${rec.taskTitle} ${rec.total}점`, idx.sha); return list; }
+    catch(e){ if(e.status !== 409 && e.status !== 422 || attempt) throw e; }
+  }
+}
+function siteReportUrl(path){ return `https://github.com/${ghRepo()}/blob/main/${ghPathUrl(path)}`; }
+function siteHistoryNote(){ return ghReady() ? `기록과 보고서는 GitHub 저장소 ${esc(ghRepo())}에 저장돼요. 제목을 누르면 보고서가 열려요.` : "기록은 이 브라우저에만 저장돼요. 시작 화면에서 GitHub 저장소를 연결하면 어느 기기에서든 남아요."; }
+async function ghLoadHistory(){
+  if(!ghReady()) return;
+  try{ const idx = await ghReadIndex(); history = idx.list; if(S.view === "setup") render(); }
+  catch(e){ ghState.status = ghErr(e); if(S.view === "setup") render(); }
+}
+
+function downloadReport(){
+  const rec = ghState.lastRec || S.lastRec; if(!rec) return;
+  const md = buildReport(rec);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([md], { type:"text/markdown;charset=utf-8" }));
+  a.download = (rec.report || reportPath(rec)).split("/").pop();
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+async function siteAfterFinish(rec){
+  ghState.lastRec = rec; ghState.saved = null; S.lastRec = rec; saveDraft();
+  if(!ghReady()){ setResultStatus("GitHub 저장소를 연결하지 않아 이 브라우저에만 저장했어요. 보고서는 내려받을 수 있어요."); return; }
+  await saveToGitHub();
+}
+async function saveToGitHub(){
+  const rec = ghState.lastRec || S.lastRec; if(!rec || ghState.busy) return;
+  ghState.busy = true; setResultStatus("GitHub 저장소에 보고서를 저장하는 중이에요.");
+  try{
+    rec.report = rec.report || reportPath(rec);
+    const list = await ghSaveRecord(rec, buildReport(rec));
+    history = list; ghState.saved = rec.report; saveDraft();
+    setResultStatus("GitHub 저장소에 보고서를 저장했어요.");
+  }catch(e){ ghState.saved = null; setResultStatus(ghErr(e) + " 결과는 이 브라우저에 남아 있어요.", true); }
+  finally{ ghState.busy = false; }
+}
+function setResultStatus(t, err){
+  ghState.status = t; ghState.err = !!err;
+  const box = document.getElementById("reportBox"); if(box) box.outerHTML = siteResultActions();
+}
+function siteResultActions(){
+  if(S.view !== "result") return "";
+  const link = ghState.saved ? `<a href="${esc(siteReportUrl(ghState.saved))}" target="_blank" rel="noopener">GitHub에서 보고서 열기</a>` : "";
+  return `<div class="block" id="reportBox"><h3>보고서</h3>
+    <p class="status${ghState.err?" err":""}">${esc(ghState.status||"")}</p>
+    <div class="actions"><button class="btn ghost sm" id="repDown">보고서 내려받기 (.md)</button>
+    ${ghReady() && !ghState.saved ? `<button class="btn ghost sm" id="repSave">GitHub에 저장</button>` : ""}${link}</div></div>`;
+}
+function ghSettings(){
+  const st = ghState.status && S.view === "setup" ? `<p class="status err">${esc(ghState.status)}</p>` : "";
+  if(ghReady()) return `<section class="section"><h2>기록 저장소</h2>
+    <p class="small">기록과 보고서를 GitHub 저장소 <b>${esc(ghRepo())}</b>에 저장해요.</p>
+    <div class="actions"><button class="btn ghost sm" id="ghTest">연결 확인</button><button class="btn ghost sm" id="ghDel">연결 해제</button></div>
+    <p class="status" id="ghStatus"></p>${st}</section>`;
+  return `<section class="section"><h2>기록 저장소</h2>
+    <p class="small">GitHub 비공개 저장소와 그 저장소만 쓸 수 있는 토큰(Contents: Read and write)을 넣으면, 기록과 보고서가 어느 기기에서든 남아요. 토큰은 이 브라우저에만 저장돼요.</p>
+    <div class="field"><label for="ghRepoIn">저장소 (아이디/이름)</label><input id="ghRepoIn" type="text" autocomplete="off" spellcheck="false" value="${esc(ghRepo())}" placeholder="아이디/vibe-mock-records"></div>
+    <div class="field"><label for="ghTokIn">토큰</label><input id="ghTokIn" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_..."></div>
+    <div class="actions"><button class="btn sm" id="ghSave">연결</button></div>
+    <p class="status" id="ghStatus"></p></section>`;
+}
+async function ghClick(b){
+  const st = document.getElementById("ghStatus");
+  if(b.id === "ghSave"){
+    const repo = (document.getElementById("ghRepoIn").value || "").trim().replace(/^https:\/\/github\.com\//, "").replace(/\.git$/, "");
+    const tok = (document.getElementById("ghTokIn").value || "").trim();
+    if(!/^[\w.-]+\/[\w.-]+$/.test(repo)){ st.className = "status err"; st.textContent = "저장소는 아이디/이름 모양으로 넣어 주세요."; return; }
+    if(!tok){ st.className = "status err"; st.textContent = "토큰을 넣어 주세요."; return; }
+    ghSet(tok, repo); st.className = "status"; st.textContent = "확인 중이에요."; b.disabled = true;
+    try{
+      const r = await gh(`/repos/${repo}`);
+      if(r && r.permissions && r.permissions.push === false) throw { status:403 };
+      ghState.status = ""; await ghLoadHistory(); render();
+      const s2 = document.getElementById("ghStatus"); if(s2) s2.textContent = r.private ? "연결됐어요." : "연결됐어요. 다만 이 저장소는 공개 저장소라 보고서가 누구에게나 보여요.";
+    }catch(e){ ghSet("", repo); st.className = "status err"; st.textContent = ghErr(e); b.disabled = false; }
+    return;
+  }
+  if(b.id === "ghDel"){ ghSet("", ghRepo()); history = readLocalHist(); render(); return; }
+  if(b.id === "ghTest"){
+    st.className = "status"; st.textContent = "확인 중이에요.";
+    try{ const r = await gh(`/repos/${ghRepo()}`); st.textContent = r.private ? "연결됐어요." : "연결됐어요(공개 저장소)."; }
+    catch(e){ st.className = "status err"; st.textContent = ghErr(e); }
+    return;
+  }
+  if(b.id === "repDown"){ downloadReport(); return; }
+  if(b.id === "repSave"){ saveToGitHub(); return; }
+}
+
 /* ───────── 시작 ───────── */
 history = readLocalHist();
 sampleFn = getKey() ? makeSample() : null;
 if(!sampleFn && S.env === "builtin") S.env = "own";
 render();
+ghLoadHistory();
 })();
 </script>
 
