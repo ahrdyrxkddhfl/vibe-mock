@@ -1,0 +1,32 @@
+import json, os, sys
+import pytest
+
+class _Collect:
+    def __init__(self):
+        self.rows = {}
+        self.order = []
+    def _put(self, name, outcome, msg):
+        if name not in self.rows:
+            self.order.append(name)
+        if name in self.rows and self.rows[name]["outcome"] == "failed":
+            return
+        self.rows[name] = {"outcome": outcome, "msg": msg}
+    def pytest_runtest_logreport(self, report):
+        name = report.nodeid.split("::")[-1]
+        if report.when == "call" or report.failed:
+            msg = ""
+            if report.failed:
+                crash = getattr(report.longrepr, "reprcrash", None)
+                msg = crash.message if crash else str(report.longrepr)[-400:]
+            self._put(name, "failed" if report.failed else report.outcome, msg[:400])
+    def pytest_collectreport(self, report):
+        if report.failed:
+            self._put("__collect__", "failed", str(report.longrepr)[-600:])
+
+def run_hidden(path):
+    # 같은 이름의 테스트 모듈이 남아 있으면 지난 결과를 다시 쓰므로 지움
+    mod = os.path.splitext(os.path.basename(path))[0]
+    sys.modules.pop(mod, None)
+    col = _Collect()
+    pytest.main(["-p", "no:cacheprovider", "-p", "no:terminal", "-W", "ignore", path], plugins=[col])
+    return json.dumps([dict(name=n, **col.rows[n]) for n in col.order], ensure_ascii=False)

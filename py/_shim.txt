@@ -1,0 +1,51 @@
+# 브라우저 파이썬은 스레드를 못 띄워서, FastAPI의 동기 함수 실행과 TestClient를 스레드 없이 돌도록 바꿈
+import asyncio, httpx, anyio.to_thread
+
+async def _run_sync(func, *args, abandon_on_cancel=False, cancellable=None, limiter=None):
+    return func(*args)
+anyio.to_thread.run_sync = _run_sync
+
+class _NoIOSelector:
+    def select(self, timeout=None):
+        return []
+    def close(self):
+        pass
+
+class _NoIOLoop(asyncio.BaseEventLoop):
+    # 소켓 없이 콜백만 도는 이벤트 루프. ASGI 앱을 메모리 안에서 끝까지 돌릴 때만 씀
+    def __init__(self):
+        super().__init__()
+        self._selector = _NoIOSelector()
+    def _process_events(self, event_list):
+        pass
+    def _write_to_self(self):
+        pass
+
+class _SyncASGITransport(httpx.BaseTransport):
+    def __init__(self, app):
+        self._t = httpx.ASGITransport(app=app)
+        self._loop = _NoIOLoop()
+    def handle_request(self, request):
+        req = httpx.Request(request.method, request.url, headers=request.headers, content=request.read())
+        async def go():
+            r = await self._t.handle_async_request(req)
+            body = await r.aread()
+            return r.status_code, r.headers, body
+        # 바깥(브라우저) 루프가 '실행 중'으로 표시돼 있으면 안쪽 루프를 못 돌리므로 잠시 비움
+        outer = asyncio.events._get_running_loop()
+        asyncio.events._set_running_loop(None)
+        try:
+            status, headers, body = self._loop.run_until_complete(go())
+        finally:
+            asyncio.events._set_running_loop(outer)
+        return httpx.Response(status, headers=headers, content=body)
+
+class TestClient(httpx.Client):
+    __test__ = False
+    def __init__(self, app, base_url="http://testserver", raise_server_exceptions=True, **kw):
+        super().__init__(transport=_SyncASGITransport(app), base_url=base_url, follow_redirects=True)
+    def __enter__(self): return self
+
+import starlette.testclient, fastapi.testclient
+starlette.testclient.TestClient = TestClient
+fastapi.testclient.TestClient = TestClient
