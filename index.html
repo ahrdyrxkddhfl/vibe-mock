@@ -1915,8 +1915,8 @@ function sampleErr(e, fallback){
   if(c==="rate_limited") return "AI 사용량이 잠시 막혔어요. 몇 분 뒤 다시 해 주세요.";
   if(c==="session_expired") return "로그인이 만료됐어요. 다시 로그인한 뒤 해 주세요.";
   if(c==="cancelled") return "멈췄어요.";
-  if(c==="no_key") return "AI를 쓰려면 시작 화면 맨 위에 Claude API 키를 넣어 주세요.";
-  if(c==="bad_key") return "API 키가 맞지 않아요. 시작 화면에서 키를 다시 넣어 주세요.";
+  if(c==="no_key") return "AI를 쓰려면 홈의 설정에서 Claude API 키를 넣어 주세요.";
+  if(c==="bad_key") return "API 키가 맞지 않아요. 홈의 설정에서 키를 다시 넣어 주세요.";
   if(c==="network") return "Claude API에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.";
   if(c==="bad_request") return "요청이 거절됐어요" + (e.message ? ": " + e.message : ".");
   return fallback;
