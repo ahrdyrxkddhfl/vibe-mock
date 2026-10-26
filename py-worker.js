@@ -37,8 +37,10 @@ async function boot(){
       post("status", { text: "파이썬 실행 환경을 불러오는 중이에요. 처음 한 번만 오래 걸려요." });
       importScripts(BASE + "pyodide.js");
       const p = await self.loadPyodide({ indexURL: BASE });
-      p.setStdout({ batched: s => out("stdout", s + "\n") });
-      p.setStderr({ batched: s => out("stderr", s + "\n") });
+      // 받은 바이트를 그대로 넘김. batched는 flush마다 줄을 바꿔서 pytest의 점(.)이 한 줄에 하나씩 찍혔음
+      const decOut = new TextDecoder(), decErr = new TextDecoder();
+      p.setStdout({ write: buf => { out("stdout", decOut.decode(buf, { stream:true })); return buf.length; } });
+      p.setStderr({ write: buf => { out("stderr", decErr.decode(buf, { stream:true })); return buf.length; } });
       p.FS.mkdirTree(SHIM);
       for(const [name, file] of [["_shim.py","_shim.txt"],["_hidden_runner.py","_hidden_runner.txt"]]){
         const r = await _fetch(BASE + file);
