@@ -2104,6 +2104,8 @@ function starterOf(T){
 
 /* 시험장 AI 성능. 실제 시험 AI가 기대보다 약할 때를 대비하는 연습용 */
 const LEVELS = {
+  // 사전점검: 시험장에서는 Claude Sonnet 4.6과 GPT-5.2 중에서 고름. 연습장은 Claude API만 써서 Sonnet 4.6만 흉내 낼 수 있음(사이트 버전 전용)
+  real: { name:"실전 (Sonnet 4.6)", tier:"exam", desc:"시험장에서 고를 수 있는 Claude Sonnet 4.6이에요. 사이트에서만 돼요.", siteOnly:true },
   high: { name:"상", tier:"complex", desc:"가장 성능 좋은 모델. 답이 느릴 수 있어요." },
   mid:  { name:"중", tier:"default", desc:"보통 모델. 기본값이에요." },
   low:  { name:"하", tier:"quick",   desc:"작고 빠른 모델 + 일부러 예외 처리를 자주 빠뜨리고 가끔 실수해요." },
@@ -2195,7 +2197,7 @@ function viewSetup(){
       <div><dt><span class="chip ok">확인</span>순서</dt><dd>서류 → AI 역량진단 → 1·2차 면접 → 3주 이내 인턴십.</dd></div>
       <div><dt><span class="chip ok">응시 안내</span>시험 환경</dt><dd>구름 Devth 설치형 브라우저(앱)에서 2시간(15~17시). 웹캠·스마트폰 감독, 플랫폼 안에서 주는 AI 도구를 써요.</dd></div>
       <div><dt><span class="chip ok">응시 안내</span>문제</dt><dd>라이브러리형 2문항. 제공된 라이브러리(예: 출석부 rollbook)를 import해서 함수를 짜요. 언어는 C, C++, Java, JavaScript, Python 중 선택.</dd></div>
-      <div><dt><span class="chip ok">사전점검</span>시험장 AI</dt><dd>문제를 못 봐요. 내가 보내는 글은 문제당 합쳐서 ${SEND_LIMIT}토큰, 질문은 ${Q_LIMIT}번까지(한글은 거의 1글자 = 1토큰). AI 답 길이는 세지 않아요.</dd></div>
+      <div><dt><span class="chip ok">사전점검</span>시험장 AI</dt><dd>문제를 못 봐요. 내가 보내는 글은 문제당 합쳐서 ${SEND_LIMIT}토큰, 질문은 ${Q_LIMIT}번까지(한글은 거의 1글자 = 1토큰). AI 답 길이는 세지 않아요. 모델은 Claude Sonnet 4.6과 GPT-5.2 중에서 골라요.</dd></div>
       <div><dt><span class="chip guess">설명회 카더라</span>채점</dt><dd>구현을 완성했는지에 더해 AI와의 대화 맥락, 토큰을 효율적으로 썼는지도 봐요.</dd></div>
     </dl>
   </div>
@@ -2215,7 +2217,7 @@ function viewSetup(){
       <button class="choice" data-limit="free" aria-pressed="${S.limit!=="exam"}"><b>제한 없음</b><small>예전 연습 방식. 앞 대화까지 합친 토큰을 봐요</small></button>
     </div></section>`:""}
   ${builtin()?`<section class="section"><h2>시험장 AI 성능</h2>
-    <div class="choices">${Object.entries(LEVELS).map(([k,l])=>`<button class="choice" data-level="${k}" aria-pressed="${S.aiLevel===k}"><b>${l.name}</b><small>${esc(l.desc)}</small></button>`).join("")}</div>
+    <div class="choices">${Object.entries(LEVELS).filter(([k,l])=>!l.siteOnly || (typeof MODELS!=="undefined" && MODELS[l.tier])).map(([k,l])=>`<button class="choice" data-level="${k}" aria-pressed="${S.aiLevel===k}"><b>${l.name}</b><small>${esc(l.desc)}</small></button>`).join("")}</div>
     <p class="muted small">실제 시험 AI가 생각보다 약할 수 있어요. '하'로 연습하면 AI 답을 의심하고 반례로 고쳐 쓰는 습관이 붙어요.</p>
   </section>`:""}
   <section class="section"><h2>문제</h2>
@@ -3016,7 +3018,7 @@ async function sendChat(){
     const r = await sampleFn(turns, { cache:false, signal:chatCtl.signal, modelTier:LEVELS[S.aiLevel].tier,
       onText:({text})=>{ aiMsg.content=text; aiEl.innerHTML=renderBody(text, S.chat.length-1); scrollMsgs(); } });
     aiMsg.content = r.text;
-    if(r.modelTierApplied && r.modelTierApplied!==LEVELS[S.aiLevel].tier) st.textContent="요금제 사정으로 다른 성능의 모델이 대신 답했어요.";
+    if(r.modelTierApplied && r.modelTierApplied!==LEVELS[S.aiLevel].tier) st.textContent="고른 모델을 쓸 수 없어 다른 모델이 대신 답했어요.";
     S.usage.calls++; S.usage.inChars+=inChars; S.usage.outChars+=r.text.length;
     if(r.usage){ S.usage.realIn=(S.usage.realIn||0)+r.usage.input; S.usage.realOut=(S.usage.realOut||0)+r.usage.output; }
     aiMsg.tok = r.usage ? { in:r.usage.input, out:r.usage.output, real:true }
@@ -3415,7 +3417,7 @@ document.addEventListener("visibilitychange", () => {
    API 키는 이 브라우저의 localStorage에만 저장해요. 코드·저장소에는 들어가지 않고,
    api.anthropic.com 호출에만 써요. */
 const KEY_STORE = "vibe-mock-anthropic-key";
-const MODELS = { complex:"claude-opus-5-5", default:"claude-sonnet-5-5", quick:"claude-haiku-5-5" };  // AI 성능 상·중·하
+const MODELS = { exam:"claude-sonnet-4-6", complex:"claude-opus-5-5", default:"claude-sonnet-5-5", quick:"claude-haiku-5-5" };  // 실전(시험장과 같은 Sonnet 4.6)·상·중·하
 const MAX_TOKENS = 8000;   // 한 번 답할 때 최대 출력 토큰. 작으면 긴 코드가 잘리고, 크면 답이 길어질 때 요금이 늘어요
 const MAX_TOKENS_COMPLEX = 16000;  // 문제 출제·채점(성능 상)용. 숨은 테스트 코드까지 한 번에 써야 해서 더 길게 둠
 function getKey(){ try{ return localStorage.getItem(KEY_STORE) || ""; }catch(e){ return ""; } }
@@ -3433,6 +3435,14 @@ function toMessages(input){
 }
 
 async function callClaude(input, opts = {}){
+  // 실전 모델(Sonnet 4.6)을 이 키로 못 쓰면(404) 중 모델로 대신 답하고, 화면에 '다른 모델이 답했어요'가 떠요
+  if((opts.modelTier || "default") === "exam"){
+    try{ return await callClaudeOnce(input, opts); }
+    catch(e){ if(e && e.status === 404) return await callClaudeOnce(input, Object.assign({}, opts, { modelTier:"default" })); throw e; }
+  }
+  return callClaudeOnce(input, opts);
+}
+async function callClaudeOnce(input, opts = {}){
   const key = getKey();
   if(!key) throw { code:"no_key" };
   const tier = opts.modelTier || "default";
@@ -3559,13 +3569,13 @@ function siteClick(b){
   }
   if(b.id === "keyDel"){ setKey(""); sampleFn = null; S.env = "own"; render(); return true; }
   if(b.id === "keyTest"){
-    st.className = "status"; st.textContent = "성능 상·중·하 모델을 하나씩 확인 중이에요.";
+    st.className = "status"; st.textContent = "실전·상·중·하 모델을 하나씩 확인 중이에요.";
     b.disabled = true;
     (async () => {
-      const names = { complex:"상", default:"중", quick:"하" }, lines = [];
+      const names = { exam:"실전", complex:"상", default:"중", quick:"하" }, lines = [];
       let bad = 0;
-      for(const tier of ["complex","default","quick"]){
-        try{ await callClaude("ok라고만 답해.", { modelTier:tier, maxTokens:5 }); lines.push(`${names[tier]}(${MODELS[tier]}): 됨`); }
+      for(const tier of ["exam","complex","default","quick"]){
+        try{ await callClaudeOnce("ok라고만 답해.", { modelTier:tier, maxTokens:5 }); lines.push(`${names[tier]}(${MODELS[tier]}): 됨`); }
         catch(e){ bad++; lines.push(`${names[tier]}(${MODELS[tier]}): 안 됨 — ${sampleErr(e, "연결하지 못했어요.")}`); }
         st.textContent = lines.join("\n");
       }
