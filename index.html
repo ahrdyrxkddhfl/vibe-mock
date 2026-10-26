@@ -203,6 +203,8 @@ summary{cursor:pointer;font-weight:700;font-size:14.5px}
 .msg{display:flex;flex-direction:column;gap:4px;min-width:0}
 .msg .who{font-size:12.5px;color:var(--muted);font-family:var(--f-mono)}
 .msg .who .tok.warn{color:var(--bad);font-weight:700}
+.warn-text{color:var(--bad);font-weight:700}
+#sendMeter{font-family:var(--f-mono);font-size:12.5px}
 .msg.me .who::before{content:"나> ";color:var(--title);font-weight:700}
 .msg.ai .who::before{content:"AI> ";color:var(--bad);font-weight:700}
 .msg .body{min-width:0;display:flex;flex-direction:column;gap:8px;font-size:14.5px;line-height:1.7}
@@ -872,6 +874,152 @@ def test_09_batch(c):
     r = c.post("/inquiries/batch", json={"texts": ["환불해 주세요", "배송 언제 와요"]})
     assert r.status_code == 200
     assert [x["category"] for x in r.json()] == ["환불", "배송"]
+</script>
+<script type="text/plain" id="hid-any-lib-roll">
+import pytest
+
+NAMES = ["최다은", "김하늘", "박서준", "이도윤"]   # 번호: 김하늘1 박서준2 이도윤3 최다은4
+
+
+def RB():
+    return lib("rollbook").RollBook(NAMES)
+
+
+def test_01_basic(sol):
+    """번호:상태 줄을 반영하고 상태별 인원을 세는가"""
+    b = RB()
+    r = sol.take_attendance(b, "2026-10-27", ["1:출석", "2:지각", "3:출석", "4:결석"])
+    assert r == {"출석": 2, "지각": 1, "결석": 1, "errors": []}
+    assert b.status("박서준", "2026-10-27") == "지각"
+
+
+def test_02_missing_is_absent(sol):
+    """줄이 없는 학생은 결석으로 기록하는가"""
+    b = RB()
+    r = sol.take_attendance(b, "2026-10-27", ["1:출석"])
+    assert r["출석"] == 1 and r["결석"] == 3
+    assert b.status("최다은", "2026-10-27") == "결석"
+
+
+def test_03_errors_line_numbers(sol):
+    """형식이 틀리거나 없는 번호·모르는 상태인 줄을 1부터 센 줄 번호로 errors에 넣고 나머지는 처리하는가"""
+    b = RB()
+    r = sol.take_attendance(b, "2026-10-27", ["1:출석", "5:출석", "2-지각", "3:조퇴", "x:출석", "0:출석", "4:지각"])
+    assert r["errors"] == [2, 3, 4, 5, 6]
+    assert r["출석"] == 1 and r["지각"] == 1 and r["결석"] == 2
+
+
+def test_04_last_wins(sol):
+    """같은 번호가 두 번 나오면 마지막 상태를 반영하는가"""
+    b = RB()
+    r = sol.take_attendance(b, "2026-10-27", ["2:지각", "2:출석"])
+    assert b.status("박서준", "2026-10-27") == "출석"
+    assert r["출석"] == 1 and r["지각"] == 0
+
+
+def test_05_spaces_and_rerun(sol):
+    """칸 앞뒤 공백을 지우고, 같은 날 다시 불러도 인원이 두 배가 되지 않는가"""
+    b = RB()
+    sol.take_attendance(b, "2026-10-27", [" 1 : 출석 ", "2:지각"])
+    r = sol.take_attendance(b, "2026-10-27", [" 1 : 출석 ", "2:지각"])
+    assert r == {"출석": 1, "지각": 1, "결석": 2, "errors": []}
+
+
+def test_06_monthly_rate(sol):
+    """월별 보고서가 번호순이고 출석률을 (출석 + 지각×0.5) / 그 달 기록된 날 수로 계산하는가"""
+    b = RB()
+    sol.take_attendance(b, "2026-10-01", ["1:출석", "2:지각", "3:출석", "4:출석"])
+    sol.take_attendance(b, "2026-10-02", ["1:지각", "2:지각", "3:출석"])
+    sol.take_attendance(b, "2026-10-03", ["1:출석", "3:출석"])
+    sol.take_attendance(b, "2026-11-01", ["1:결석"])
+    rep = sol.monthly_report(b, "2026-10")
+    assert [x["number"] for x in rep] == [1, 2, 3, 4]
+    assert rep[0] == {"number": 1, "name": "김하늘", "출석": 2, "지각": 1, "결석": 0, "rate": 0.83}
+    assert rep[1]["rate"] == 0.33 and rep[1]["결석"] == 1
+    assert rep[2]["rate"] == 1.0
+    assert rep[3]["결석"] == 2
+
+
+def test_07_month_boundary_and_empty(sol):
+    """다른 달 기록은 빼고, 기록이 없는 달은 rate 0.0으로 주는가"""
+    b = RB()
+    sol.take_attendance(b, "2026-09-30", ["1:출석"])
+    sol.take_attendance(b, "2026-10-01", ["1:결석"])
+    rep = sol.monthly_report(b, "2026-10")
+    assert rep[0]["출석"] == 0 and rep[0]["결석"] == 1 and rep[0]["rate"] == 0.0
+    rep = sol.monthly_report(b, "2026-12")
+    assert all(x["rate"] == 0.0 and x["출석"] == 0 for x in rep) and len(rep) == 4
+</script>
+<script type="text/plain" id="start-any-lib-roll">
+from rollbook import RollBook
+
+
+def take_attendance(book, date, rows):
+    pass
+
+
+def monthly_report(book, month):
+    pass
+</script>
+<script type="text/plain" data-lib="any-lib-roll" data-name="rollbook.py">
+"""출석부 라이브러리 (시험에서 제공하는 라이브러리예요. 고치지 마세요. 채점할 땐 원본으로 바뀌어요.)
+
+출석번호는 이름 가나다순으로 1번부터 매겨요.
+상태는 "출석", "지각", "결석" 세 가지예요.
+"""
+
+STATUSES = ("출석", "지각", "결석")
+
+
+class RollBook:
+    """한 반의 출석부.
+
+    Args:
+        names: 학생 이름 목록 (중복 없음)
+    """
+
+    def __init__(self, names):
+        self._names = sorted(names)
+        self._num = {n: i + 1 for i, n in enumerate(self._names)}
+        self._marks = {}        # (date, name) -> status
+        self.mark_calls = 0     # mark()를 부른 횟수
+
+    def size(self) -> int:
+        """학생 수"""
+        return len(self._names)
+
+    def number_of(self, name: str) -> int:
+        """이름 → 출석번호. 없는 이름이면 KeyError"""
+        return self._num[name]
+
+    def name_of(self, number: int) -> str:
+        """출석번호 → 이름. 없는 번호면 KeyError"""
+        if not isinstance(number, int) or not 1 <= number <= len(self._names):
+            raise KeyError(number)
+        return self._names[number - 1]
+
+    def mark(self, name: str, date: str, status: str) -> None:
+        """그날 상태를 기록해요. 같은 날 다시 기록하면 덮어써요.
+        모르는 상태면 ValueError, 없는 이름이면 KeyError"""
+        if status not in STATUSES:
+            raise ValueError(status)
+        self._num[name]
+        self.mark_calls += 1
+        self._marks[(date, name)] = status
+
+    def status(self, name: str, date: str):
+        """그날 상태. 기록이 없으면 None"""
+        return self._marks.get((date, name))
+
+    def count(self, date: str, status: str) -> int:
+        """그날 status인 학생 수. 모르는 상태면 ValueError"""
+        if status not in STATUSES:
+            raise ValueError(status)
+        return sum(1 for (d, _), s in self._marks.items() if d == date and s == status)
+
+    def dates(self) -> list:
+        """기록이 있는 날짜 목록 (오름차순)"""
+        return sorted({d for d, _ in self._marks})
 </script>
 <script type="text/plain" id="hid-prelude-lib">
 import sys
@@ -1543,6 +1691,43 @@ const API_RULES = "main.py에 FastAPI 앱 객체 app을 만들어요. 저장은 
 const LIB_RULES = "solution.py에 함수·클래스를 만들어요. 채점은 숨은 테스트가 함수를 직접 불러 결과를 확인하고, 테스트마다 모듈을 새로 불러와요. 제공 라이브러리 파일은 고치지 마세요(채점할 땐 원본으로 바뀌어요). 직접 확인은 test_로 시작하는 파일에 pytest로 써서 테스트 버튼으로 돌려요.";
 
 const BANK = [
+{ id:"any-lib-roll", track:"any", type:"lib", title:"출석부 정리 (rollbook 라이브러리 활용)",
+  scenario:"학원 출결 시스템을 만들어요. 출석번호와 출결 기록은 제공된 rollbook 라이브러리가 관리해요. 라이브러리를 import해서 하루 출석을 반영하는 함수와 월별 보고서 함수를 solution.py에 만들어요.",
+  spec:`[제공 라이브러리] rollbook.py
+  RollBook(names)                   출석번호는 이름 가나다순으로 1번부터
+    .size() -> int                  학생 수
+    .number_of(name) -> int         없는 이름이면 KeyError
+    .name_of(number) -> str         없는 번호면 KeyError
+    .mark(name, date, status)       그날 상태 기록 (같은 날 다시 하면 덮어씀)
+                                    status는 "출석" | "지각" | "결석", 아니면 ValueError
+    .status(name, date) -> str | None
+    .count(date, status) -> int     그날 status인 학생 수
+    .dates() -> [날짜]              기록이 있는 날짜 (오름차순)
+  date는 "YYYY-MM-DD" 문자열
+
+[구현할 함수] solution.py
+take_attendance(book, date, rows) -> dict
+  rows: ["번호:상태", ...]   예) ["3:출석", "12:지각"]
+  - 칸 앞뒤 공백은 지워요
+  - 형식이 틀리거나(콜론이 1개가 아님, 번호가 숫자가 아님) 없는 번호, 모르는 상태인 줄은
+    errors에 줄 번호(1부터)를 넣고, 나머지 줄은 처리해요
+  - 같은 번호가 여러 번 나오면 마지막 줄을 반영해요
+  - rows에 없는 학생은 그날 "결석"으로 기록해요
+  반환: {"출석": n, "지각": n, "결석": n, "errors": [줄 번호...]}   인원은 그날 기준
+
+monthly_report(book, month) -> list
+  month: "YYYY-MM". 그 달에 기록이 있는 날만 세요
+  출석번호 순서로 [{"number", "name", "출석", "지각", "결석", "rate"}]
+  rate = (출석 + 지각 × 0.5) / 그 달 기록된 날 수, round(값, 2). 기록된 날이 없으면 0.0`,
+  must:["take_attendance: 번호:상태 줄 반영과 상태별 인원","잘못된 줄은 errors에 줄 번호, 나머지는 처리","같은 번호는 마지막 줄 반영, 없는 학생은 결석","monthly_report: 번호순, 그 달 기록만","rate 계산과 기록 없는 달 0.0"],
+  nice:["직접 쓴 테스트 코드 (test_solution.py)","README에 확인한 것·못 한 것"],
+  deliver:"solution.py, 테스트, README",
+  sample:`book = RollBook(["최다은", "김하늘", "박서준"])   # 김하늘 1, 박서준 2, 최다은 3
+take_attendance(book, "2026-10-27", ["1:출석", "2:지각", "9:출석"])
+→ {"출석": 1, "지각": 1, "결석": 1, "errors": [3]}
+monthly_report(book, "2026-10")[0]
+→ {"number": 1, "name": "김하늘", "출석": 1, "지각": 0, "결석": 0, "rate": 1.0}`,
+  hidden:["줄이 없는 학생을 결석으로 기록하는가","잘못된 줄 하나 때문에 나머지를 버리지 않는가","같은 날 다시 불러도 인원이 쌓이지 않는가","다른 달 기록을 섞지 않는가"] },
 { id:"sw-lib-seat", track:"sw", type:"lib", title:"공연 좌석 묶음 예매 (좌석 SDK 활용)",
   scenario:"공연 예매 서비스에 '여러 좌석 한 번에 예매'와 '붙은 자리 찾기'를 넣어요. 좌석을 잡고 푸는 일은 제공된 좌석 SDK(seat_lib.py)가 해요. SDK를 불러 써서 두 함수를 solution.py에 만들어요.",
   spec:`[제공 라이브러리] seat_lib.py
@@ -1942,7 +2127,7 @@ let history = [];
 let gradeCtl = null, chatCtl = null, chatBusy = false;
 
 function freshState(){
-  return { view:"home", track:"de", minutes:120, env:"builtin", aiLevel:"mid", ptype:"lib", libSeen:true, runs:0, hiddenRes:null, task:null, source:"bank",
+  return { view:"home", track:"de", minutes:120, env:"builtin", aiLevel:"mid", ptype:"lib", libSeen:true, limit:"exam", runs:0, hiddenRes:null, task:null, source:"bank",
     startedAt:null, pausedAt:null, pausedMs:0, finishedAt:null, tab:"q",
     done:{}, chat:[], usage:{calls:0,inChars:0,outChars:0}, attach:true, leaves:0,
     log:"", code:"", codePrev:null, run:"", readme:"", result:null, selfScores:{}, selfHidden:{}, saved:false };
@@ -1962,6 +2147,27 @@ const fmt = ms => { ms=Math.max(0,ms); const t=Math.floor(ms/1000); const h=Math
 const tokens = () => S.usage.realIn!=null ? S.usage.realIn + S.usage.realOut : Math.round((S.usage.inChars + S.usage.outChars)/CHARS_PER_TOKEN);
 const tokWord = () => S.usage.realIn!=null ? "토큰" : "토큰 약";
 const prompts = () => S.chat.filter(m=>m.role==="user").length;
+/* 실전 규칙 (10/26 사전점검에서 확인): 문제당 AI에게 '보내는' 글이 합쳐서 500토큰, 질문은 8번까지.
+   AI 답의 길이는 세지 않아요. 플랫폼 토크나이저를 알 수 없어 글자 수로 추정해요. */
+const SEND_LIMIT = 500;      // 문제당 보낼 수 있는 토큰. 실제 시험 값
+const Q_LIMIT = 8;           // 문제당 질문 횟수. 실제 시험 값
+const HAN_TOKEN = 1.25;      // 한글 1글자 ≈ 토큰. 사전점검 예시(219자 = 203토큰, 글자당 약 0.93)에 맞춘 값. 크면 더 빨리 한도에 닿아요
+const WORD_CHARS = 4;        // 영문·숫자 단어는 이 글자 수당 1토큰
+const SYMBOL_TOKEN = 0.7;    // 기호(괄호·쉼표·화살표 등) 1개 ≈ 토큰. 실제 토크나이저는 기호를 따로 세는 일이 많아 넉넉히 잡음
+const SPACE_TOKEN = 0.25;    // 공백·줄바꿈 1개 ≈ 토큰
+const HAN_RE = /[\uac00-\ud7a3\u3131-\u318e]/g;
+function estTok(text){
+  const s = String(text || "");
+  const han = (s.match(HAN_RE) || []).length;
+  const rest = s.replace(HAN_RE, " ");
+  const words = rest.match(/[A-Za-z0-9_]+/g) || [];
+  const wordTok = words.reduce((a, w) => a + Math.ceil(w.length / WORD_CHARS), 0);
+  const symbols = s.replace(HAN_RE, "").replace(/[A-Za-z0-9_\s]+/g, "").length;
+  const spaces = (s.match(/\s/g) || []).length;
+  return Math.ceil(han * HAN_TOKEN + wordTok + symbols * SYMBOL_TOKEN + spaces * SPACE_TOKEN);
+}
+const limited = () => S.limit === "exam" && builtin();
+const sentTok = () => S.chat.filter(m=>m.role==="user").reduce((a,m)=>a+(m.sendTok!=null?m.sendTok:estTok(m.content)),0);
 const builtin = () => S.env==="builtin" && !!sampleFn;
 
 function elapsed(now=Date.now()){
@@ -1988,7 +2194,8 @@ function viewSetup(){
       <div><dt><span class="chip ok">확인</span>형식</dt><dd>개발 직무는 AI와 협업해 실제 결과물을 구현하는 시험. 기존 알고리즘 코딩테스트는 폐지됐어요.</dd></div>
       <div><dt><span class="chip ok">확인</span>순서</dt><dd>서류 → AI 역량진단 → 1·2차 면접 → 3주 이내 인턴십.</dd></div>
       <div><dt><span class="chip ok">응시 안내</span>시험 환경</dt><dd>구름 Devth 설치형 브라우저(앱)에서 2시간(15~17시). 웹캠·스마트폰 감독, 플랫폼 안에서 주는 AI 도구를 써요.</dd></div>
-      <div><dt><span class="chip ok">응시 안내</span>문제</dt><dd>라이브러리형 2문항. 언어는 C, C++, Java, JavaScript, Python 중 선택. '라이브러리형'의 정확한 뜻은 공개되지 않았어요. 이 연습장은 함수·클래스를 만들고 숨은 테스트로 채점하는 모양으로 냈어요.</dd></div>
+      <div><dt><span class="chip ok">응시 안내</span>문제</dt><dd>라이브러리형 2문항. 제공된 라이브러리(예: 출석부 rollbook)를 import해서 함수를 짜요. 언어는 C, C++, Java, JavaScript, Python 중 선택.</dd></div>
+      <div><dt><span class="chip ok">사전점검</span>시험장 AI</dt><dd>문제를 못 봐요. 내가 보내는 글은 문제당 합쳐서 ${SEND_LIMIT}토큰, 질문은 ${Q_LIMIT}번까지(한글은 거의 1글자 = 1토큰). AI 답 길이는 세지 않아요.</dd></div>
       <div><dt><span class="chip guess">설명회 카더라</span>채점</dt><dd>구현을 완성했는지에 더해 AI와의 대화 맥락, 토큰을 효율적으로 썼는지도 봐요.</dd></div>
     </dl>
   </div>
@@ -2002,6 +2209,11 @@ function viewSetup(){
       <button class="choice" data-env="own" aria-pressed="${S.env==="own"||!sampleFn}"><b>내 도구</b><small>Cursor·Claude 등 평소 도구로 풀고, 시킨 일을 직접 적어요.</small></button>
     </div>
   </section>
+  ${builtin()?`<section class="section"><h2>AI 사용 제한</h2>
+    <div class="choices two">
+      <button class="choice" data-limit="exam" aria-pressed="${S.limit==="exam"}"><b>실전 규칙</b><small>문제당 보내는 글 ${SEND_LIMIT}토큰 · 질문 ${Q_LIMIT}번 (사전점검에서 확인한 조건)</small></button>
+      <button class="choice" data-limit="free" aria-pressed="${S.limit!=="exam"}"><b>제한 없음</b><small>예전 연습 방식. 앞 대화까지 합친 토큰을 봐요</small></button>
+    </div></section>`:""}
   ${builtin()?`<section class="section"><h2>시험장 AI 성능</h2>
     <div class="choices">${Object.entries(LEVELS).map(([k,l])=>`<button class="choice" data-level="${k}" aria-pressed="${S.aiLevel===k}"><b>${l.name}</b><small>${esc(l.desc)}</small></button>`).join("")}</div>
     <p class="muted small">실제 시험 AI가 생각보다 약할 수 있어요. '하'로 연습하면 AI 답을 의심하고 반례로 고쳐 쓰는 습관이 붙어요.</p>
@@ -2281,9 +2493,9 @@ function paneChat(){
     <div class="msgs" id="msgs">${msgs}</div>
     <div class="hgutter" id="agutter" title="끌어서 입력칸 높이 조절 · 두 번 누르면 원래대로"></div>
     <div class="composer">
-      <textarea id="ask" style="height:${(S.layout&&S.layout.ah)||AI_INPUT.def}px" placeholder="예) 아래 명세로 엔드포인트 목록과 데이터 구조부터 정리해 줘. 코드는 아직 쓰지 마. (Ctrl+Enter 보내기)" ${on?"":"disabled"}></textarea>
+      <textarea id="ask" style="height:${(S.layout&&S.layout.ah)||AI_INPUT.def}px" placeholder="${limited() ? "AI는 문제를 못 봐요. 필요한 것만 압축해서 보내요. 예) rb.number_of(name)->int 있음. def take(rb, rows)->dict 짜줘. 질문 말고 바로 코드. (Ctrl+Enter 보내기)" : "예) 아래 명세로 엔드포인트 목록과 데이터 구조부터 정리해 줘. 코드는 아직 쓰지 마. (Ctrl+Enter 보내기)"}" ${on?"":"disabled"}></textarea>
       <div class="opts">
-        <span class="actions"><label class="chk"><input type="checkbox" id="attach" ${S.attach?"checked":""}> 답안 코드 같이 보내기</label>${S.task&&(S.task.api||S.task.spec)?`<button class="linkbtn" id="pasteSpec">명세 붙여넣기</button>`:""}</span>
+        <span class="actions">${limited() ? `<span class="small" id="sendMeter"></span>` : `<label class="chk"><input type="checkbox" id="attach" ${S.attach?"checked":""}> 답안 코드 같이 보내기</label>${S.task&&(S.task.api||S.task.spec)?`<button class="linkbtn" id="pasteSpec">명세 붙여넣기</button>`:""}`}</span>
         <span class="actions"><button class="btn ghost sm" id="stopChat" hidden>멈추기</button><button class="btn sm" id="send" ${on?"":"disabled"}>보내기</button></span>
       </div>
       <p class="status" id="chatStatus"></p>
@@ -2306,6 +2518,7 @@ function codeBlocks(text){ const out=[]; const re=/```[^\n]*\n?([\s\S]*?)```/g; 
 const CALL_WARN_SHARE = 0.2;  // 질문 한 번이 토큰 목표의 이 비율을 넘으면 빨갛게 표시. 작을수록 자주 경고
 // AI 답 머리줄에 붙는 '이번 질문 토큰' (보낸 것 = 앞 대화 + 질문, 답 = AI가 쓴 것)
 function tokHtml(m){
+  if(limited()) return m.role==="user" ? ` · <span class="tok">보냄 약 ${(m.sendTok!=null?m.sendTok:estTok(m.content)).toLocaleString()}토큰</span>` : "";
   if(!m.tok) return "";
   const sum = m.tok.in + m.tok.out, warn = sum > tokenTarget() * CALL_WARN_SHARE;
   return ` · <span class="tok${warn?" warn":""}" title="보낸 것 = 앞 대화 + 이번 질문${m.tok.real?"":" (글자 수로 추정)"}">이번 질문 토큰 ${m.tok.real?"":"약 "}${sum.toLocaleString()} (보냄 ${m.tok.in.toLocaleString()} + 답 ${m.tok.out.toLocaleString()})</span>`;
@@ -2593,7 +2806,9 @@ function runCode(cmd){
 function updateMeter(){
   const m = document.getElementById("meter"); if(!m) return;
   const tk = tokens(), tg = tokenTarget();
-  const html = `<span>질문 <b>${prompts()}</b>회</span><span class="${tk>tg?"warn":""}">${tokWord()} <b>${tk.toLocaleString()}</b> / 목표 ${(tg/1000)}k</span><span class="${S.leaves?"warn":""}">화면 이탈 <b>${S.leaves}</b>회</span>`;
+  const html = limited()
+    ? `<span class="${prompts()>=Q_LIMIT?"warn":""}">질문 <b>${prompts()}</b>/${Q_LIMIT}</span><span class="${sentTok()>=SEND_LIMIT*0.8?"warn":""}">보낸 토큰 약 <b>${sentTok()}</b>/${SEND_LIMIT}</span><span class="${S.leaves?"warn":""}">화면 이탈 <b>${S.leaves}</b>회</span>`
+    : `<span>질문 <b>${prompts()}</b>회</span><span class="${tk>tg?"warn":""}">${tokWord()} <b>${tk.toLocaleString()}</b> / 목표 ${(tg/1000)}k</span><span class="${S.leaves?"warn":""}">화면 이탈 <b>${S.leaves}</b>회</span>`;
   if(m.dataset.v!==html){ m.innerHTML=html; m.dataset.v=html; }
 }
 
@@ -2668,7 +2883,7 @@ function viewResult(){
       <span class="muted small">${R.mode==="ai"?"AI 채점":"직접 채점"}</span>
       ${R.summary?`<p class="small">${esc(R.summary)}</p>`:""}</div>
   </div>
-  <div class="stats"><span>사용 <b>${esc(R.minutesUsed)}</b>/${S.minutes}분</span>${R.env==="builtin"?`<span>질문 <b>${esc(R.prompts)}</b>회</span><span>${R.realTokens?"토큰":"토큰 약"} <b>${esc(R.tokens.toLocaleString())}</b> / 목표 ${tokenTarget()/1000}k</span><span>화면 이탈 <b>${esc(R.leaves)}</b>회</span>`:""}${R.tests&&!R.tests.error?`<span>숨은 테스트 <b>${R.tests.passed}/${R.tests.total}</b></span>`:""}</div>
+  <div class="stats"><span>사용 <b>${esc(R.minutesUsed)}</b>/${S.minutes}분</span>${R.env==="builtin" && R.limit==="exam" ? `<span>질문 <b>${esc(R.prompts)}</b>/${Q_LIMIT}</span><span>보낸 토큰 약 <b>${esc(R.sentTokens)}</b>/${SEND_LIMIT}</span><span>화면 이탈 <b>${esc(R.leaves)}</b>회</span>` : ""}${R.env==="builtin" && R.limit!=="exam"?`<span>질문 <b>${esc(R.prompts)}</b>회</span><span>${R.realTokens?"토큰":"토큰 약"} <b>${esc(R.tokens.toLocaleString())}</b> / 목표 ${tokenTarget()/1000}k</span><span>화면 이탈 <b>${esc(R.leaves)}</b>회</span>`:""}${R.tests&&!R.tests.error?`<span>숨은 테스트 <b>${R.tests.passed}/${R.tests.total}</b></span>`:""}</div>
   <div class="crit">${crit}</div>
   ${R.tests ? testsHtml(R.tests) : (hidden?`<div class="block"><h3>숨은 검증 항목</h3><ul class="hidden-checks">${hidden}</ul></div>`:"")}
   ${R.promptReview?.length?`<div class="block"><h3>프롬프트 첨삭</h3>${list(R.promptReview,"fix")}</div>`:""}
@@ -2685,7 +2900,7 @@ function render(){
   clearInterval(tick); tick=null; cm=null;
   if(S.view==="exam"){
     $app.className="ide"; $app.innerHTML = viewExam();
-    initEditor(); bindResizers(); updateClock(); scrollMsgs(); tick=setInterval(updateClock,500);
+    initEditor(); bindResizers(); updateClock(); updateSendMeter(); scrollMsgs(); tick=setInterval(updateClock,500);
   } else {
     $app.className="page";
     const V = { home:viewHome, setup:viewSetup, history:viewHistoryPage, reports:viewReports, report:viewReport, settings:viewSettings, submit:viewSubmit, self:viewSelf, result:viewResult };
@@ -2731,7 +2946,7 @@ function switchFile(i){
 function initEditorKeepHost(){ const host=document.getElementById("editor"); if(host){ host.innerHTML=""; initEditor(); } }
 
 function pool(){
-  const p = BANK.filter(t=>t.track===S.track && (S.ptype==="all" || t.type===S.ptype));
+  const p = BANK.filter(t=>(t.track===S.track || t.track==="any") && (S.ptype==="all" || t.type===S.ptype));
   return p.length ? p : BANK.filter(t=>t.track===S.track);
 }
 function pickTask(){
@@ -2758,12 +2973,28 @@ function chatPreamble(){
 응시자가 요청한 일을 도와. 요청하지 않은 기능을 덧붙이지 말고, 모르는 것은 추측하지 말고 물어봐. 코드는 \`\`\` 코드 블록으로 줘. 설명은 쉬운 한국어로 짧게.
 실행 환경: 브라우저 안 파이썬 3.13. fastapi, pydantic, httpx, pytest, numpy, pandas, sqlite3, scikit-learn을 쓸 수 있고 uvicorn·네트워크·pip 설치는 없어. FastAPI 확인은 fastapi.testclient.TestClient로 해.${S.aiLevel==="low"?LOW_AI_RULES:""}`;
 }
+// 실전 규칙일 때 입력칸 아래에 '이번 질문 / 남은 토큰 / 남은 질문'을 보여 주고, 넘으면 보내기를 막음
+function updateSendMeter(){
+  const el = document.getElementById("sendMeter"); if(!el) return;
+  const box = document.getElementById("ask"), send = document.getElementById("send");
+  const now = estTok(box ? box.value.trim() : ""), left = SEND_LIMIT - sentTok(), qLeft = Q_LIMIT - prompts();
+  const over = now > left, out = qLeft <= 0 || left <= 0;
+  el.className = "small" + (over || out ? " warn-text" : "");
+  el.textContent = out ? `이 문제의 AI 사용 한도를 다 썼어요 (질문 ${prompts()}/${Q_LIMIT} · 토큰 약 ${sentTok()}/${SEND_LIMIT})`
+    : `이번 질문 약 ${now}토큰 · 남은 토큰 약 ${Math.max(0,left)}/${SEND_LIMIT} · 남은 질문 ${qLeft}/${Q_LIMIT}${over ? " · 한도를 넘어요" : ""}`;
+  if(send && S.startedAt && !S.finishedAt && !chatBusy) send.disabled = over || out || !now;
+  if(box && out) box.disabled = true;
+}
 async function sendChat(){
   if(chatBusy) return;
   const box=document.getElementById("ask"), st=document.getElementById("chatStatus");
   const q = box.value.trim(); if(!q) return;
-  const attachedCode = S.attach && S.code.trim() ? S.code : "";
-  const userMsg = { role:"user", content:q, at:Date.now(), attached: attachedCode ? attachedCode.length : 0 };
+  if(limited()){
+    const left = SEND_LIMIT - sentTok(), need = estTok(q);
+    if(prompts() >= Q_LIMIT || need > left){ st.className="status err"; st.textContent = prompts() >= Q_LIMIT ? `질문은 ${Q_LIMIT}번까지예요.` : `이 질문은 약 ${need}토큰이라 남은 ${Math.max(0,left)}토큰을 넘어요. 줄여서 보내 주세요.`; return; }
+  }
+  const attachedCode = !limited() && S.attach && S.code.trim() ? S.code : "";
+  const userMsg = { role:"user", content:q, at:Date.now(), attached: attachedCode ? attachedCode.length : 0, sendTok: estTok(q) };
   S.chat.push(userMsg); box.value=""; saveDraft();
   const aiMsg = { role:"assistant", content:"", at:Date.now() };
   S.chat.push(aiMsg);
@@ -2805,7 +3036,7 @@ async function sendChat(){
     if(m){ m.innerHTML = S.chat.map((x,i)=>msgHtml(x,i)).join(""); scrollMsgs(); }
     const s2=document.getElementById("send"), p2=document.getElementById("stopChat");
     if(s2) s2.disabled=false; if(p2) p2.hidden=true;
-    updateMeter(); saveDraft();
+    updateMeter(); updateSendMeter(); saveDraft();
   }
 }
 function sampleErr(e, fallback){
@@ -2928,7 +3159,7 @@ ${hasHidden(T)?"":`숨은 검증 항목(지원자는 몰랐음): ${T.hidden.map(
 ${testText}
 
 [응시 정보]
-제한 ${S.minutes}분 중 ${used}분 사용. 환경: ${env==="builtin"?`시험장 내장 AI(성능 ${LEVELS[S.aiLevel].name}${S.aiLevel==="low"?": 일부러 예외 처리를 빠뜨리고 가끔 실수하도록 설정된 약한 AI. AI 실수를 잡아낸 과정은 검증 점수에서 높게 쳐 줘":""}). 이 AI는 문제지를 못 보고 응시자가 알려 준 것만 알아. 질문 ${prompts()}회, 추정 토큰 ${tokens()} (연습용 목표 ${tokenTarget()}), 화면 이탈 ${S.leaves}회`:"응시자 자기 도구(기록은 응시자가 직접 적음)"}. 화면 안 파이썬 실행 ${S.runs}회.
+제한 ${S.minutes}분 중 ${used}분 사용. 환경: ${env==="builtin"?`시험장 내장 AI(성능 ${LEVELS[S.aiLevel].name}${S.aiLevel==="low"?": 일부러 예외 처리를 빠뜨리고 가끔 실수하도록 설정된 약한 AI. AI 실수를 잡아낸 과정은 검증 점수에서 높게 쳐 줘":""}). 이 AI는 문제지를 못 보고 응시자가 알려 준 것만 알아. ${limited() ? `실전 규칙(문제당 보내는 글 ${SEND_LIMIT}토큰, 질문 ${Q_LIMIT}번, AI 답 길이는 안 셈). 질문 ${prompts()}/${Q_LIMIT}회, 보낸 토큰 약 ${sentTok()}/${SEND_LIMIT}. 토큰 효율은 이 기준으로 봐: 적은 질문과 압축된 글로 필요한 정보를 전했는지, AI가 되묻게 만들어 질문을 낭비하지 않았는지, 한도 안에서 남겨 둔 여유가 있는지` : `질문 ${prompts()}회, 추정 토큰 ${tokens()} (연습용 목표 ${tokenTarget()})`}, 화면 이탈 ${S.leaves}회`:"응시자 자기 도구(기록은 응시자가 직접 적음)"}. 화면 안 파이썬 실행 ${S.runs}회.
 
 [채점 기준]
 ${CRITERIA.map(c=>`- ${c.name} (${c.max}점): ${c.desc}`).join("\n")}
@@ -2968,7 +3199,7 @@ ${hasHidden(T)?"":`"hidden":[{"item":숨은 항목 원문,"ok":true|false|null(�
     S.result = { mode:"ai", env, total:crit.reduce((a,c)=>a+c.score,0), criteria:crit, hidden, tests:H,
       summary:String(r.summary||""), promptReview:(r.promptReview||[]).map(String).slice(0,3), strengths:(r.strengths||[]).map(String).slice(0,3),
       fixes:(r.fixes||[]).map(String).slice(0,4), questions:(r.questions||[]).map(String).slice(0,3),
-      minutesUsed:used, prompts:prompts(), tokens:tokens(), realTokens:S.usage.realIn!=null, leaves:S.leaves };
+      minutesUsed:used, prompts:prompts(), tokens:tokens(), realTokens:S.usage.realIn!=null, leaves:S.leaves, limit:limited()?"exam":"free", sentTokens:sentTok() };
     finish();
   }catch(e){
     btn.disabled=false; if(selfBtn) selfBtn.disabled=false; stop.hidden=true;
@@ -2994,7 +3225,7 @@ function selfFinish(){
   const fixes = hasHidden(S.task) && auto ? H.rows.filter(r=>!r.ok).map(r=>r.desc+" → 다음엔 이 경우를 먼저 테스트로 써 보기")
     : hidden.filter(h=>h.ok===false).map(h=>h.item+" → 다음엔 이 반례를 먼저 테스트로 쓰기");
   S.result = { mode:"self", env:S.env, total:crit.reduce((a,c)=>a+c.score,0), criteria:crit, hidden, tests:hasHidden(S.task)?H:null, summary:"", promptReview:[], strengths:[],
-    fixes:fixes.slice(0,6), questions:[], minutesUsed:used, prompts:prompts(), tokens:tokens(), realTokens:S.usage.realIn!=null, leaves:S.leaves };
+    fixes:fixes.slice(0,6), questions:[], minutesUsed:used, prompts:prompts(), tokens:tokens(), realTokens:S.usage.realIn!=null, leaves:S.leaves, limit:limited()?"exam":"free", sentTokens:sentTok() };
   finish();
 }
 
@@ -3031,7 +3262,8 @@ function buildReport(rec){
   L.push(`- 직무: ${TRACKS[T.track]?.name||""} · 유형: ${typeName(T)} · 출처: ${S.source==="ai"?"AI 출제":"문제은행"}`);
   L.push(`- 환경: ${R.env==="builtin"?`시험장 방식 · AI 성능 ${LEVELS[S.aiLevel].name}`:"내 도구"} · 채점: ${R.mode==="ai"?"AI 채점":"직접 채점"}`);
   L.push(`- 사용 시간: ${R.minutesUsed}분 / ${S.minutes}분`);
-  if(R.env==="builtin") L.push(`- 질문 ${R.prompts}회 · ${R.realTokens?"토큰":"토큰(추정)"} ${R.tokens.toLocaleString()} / 목표 ${tokenTarget().toLocaleString()} · 화면 이탈 ${R.leaves}회`);
+  if(R.env==="builtin" && R.limit==="exam") L.push(`- 실전 규칙 · 질문 ${R.prompts}/${Q_LIMIT}회 · 보낸 토큰 약 ${R.sentTokens}/${SEND_LIMIT} · 화면 이탈 ${R.leaves}회`);
+  else if(R.env==="builtin") L.push(`- 질문 ${R.prompts}회 · ${R.realTokens?"토큰":"토큰(추정)"} ${R.tokens.toLocaleString()} / 목표 ${tokenTarget().toLocaleString()} · 화면 이탈 ${R.leaves}회`);
   L.push(`- 화면 안 파이썬 실행 ${S.runs}회`, "");
   L.push("## 점수", "", "| 항목 | 점수 | 코멘트 |", "|---|---|---|");
   R.criteria.forEach(c=>L.push(`| ${c.name} | ${c.score}/${c.max} | ${cell(c.comment)} |`));
@@ -3056,7 +3288,7 @@ function buildReport(rec){
     L.push("## AI 대화 기록", "");
     S.chat.forEach((m,i)=>{
       const t = m.at ? new Date(m.at).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"}) : "";
-      L.push(`### #${i} ${m.role==="user"?"나":"AI"} ${t}${m.attached?` (코드 ${m.attached}자 첨부)`:""}${m.tok?` (이번 질문 토큰 ${m.tok.real?"":"약 "}${(m.tok.in+m.tok.out).toLocaleString()} = 보냄 ${m.tok.in.toLocaleString()} + 답 ${m.tok.out.toLocaleString()})`:""}`, "", m.content, "");
+      L.push(`### #${i} ${m.role==="user"?"나":"AI"} ${t}${m.role==="user"&&m.sendTok!=null?` (보냄 약 ${m.sendTok}토큰)`:""}${m.attached?` (코드 ${m.attached}자 첨부)`:""}${m.tok?` (이번 질문 토큰 ${m.tok.real?"":"약 "}${(m.tok.in+m.tok.out).toLocaleString()} = 보냄 ${m.tok.in.toLocaleString()} + 답 ${m.tok.out.toLocaleString()})`:""}`, "", m.content, "");
     });
   } else {
     L.push("## 프롬프트 기록", "", fence(S.log), "");
@@ -3085,6 +3317,7 @@ $app.addEventListener("click", e => {
   if(b.dataset.min){ S.minutes=+b.dataset.min; render(); return; }
   if(b.dataset.env){ S.env=b.dataset.env; render(); return; }
   if(b.dataset.level){ S.aiLevel=b.dataset.level; render(); return; }
+  if(b.dataset.limit){ S.limit=b.dataset.limit; render(); return; }
   if(b.dataset.ptype){ S.ptype=b.dataset.ptype; render(); return; }
   if(b.dataset.tab){ setTab(b.dataset.tab); return; }
   if(b.dataset.self){ S.selfScores[b.dataset.self]=+b.dataset.f; render(); return; }
@@ -3134,6 +3367,7 @@ $app.addEventListener("change", e => {
 });
 $app.addEventListener("input", e => {
   const t=e.target;
+  if(t.id==="ask"){ updateSendMeter(); return; }
   if(t.id==="log") S.log=t.value;
   else if(t.id==="code"){ activeFile().body=t.value; syncCode(); return; }
   else if(t.id==="readme") S.readme=t.value;
