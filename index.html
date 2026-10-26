@@ -3160,7 +3160,11 @@ function addFile(name){
   if(!/^[\w.\-\/]+$/.test(name)){ const ft=document.querySelector(".filetabs"); if(ft) ft.outerHTML=fileTabs(); setRunStatus("파일 이름은 영문·숫자·_ - . / 만 써요. 예: test_main.py, data/orders.csv", true); return; }
   ensureFiles();
   let i = S.files.findIndex(f=>f.name===name);
-  if(i<0){ S.files.push({ name, body: /^test_.*\.py$/.test(name.split("/").pop()) ? "from fastapi.testclient import TestClient\nfrom main import app\n\nclient = TestClient(app)\n\n\ndef test_example():\n    pass\n" : "" }); i=S.files.length-1; syncCode(); }
+  const isTest = /^test_.*\.py$/.test(name.split("/").pop());
+  const testStarter = (S.task && S.task.type==="lib")
+    ? "import pytest\nfrom solution import *   # solution.py의 함수·클래스를 모두 불러옴\n\n\ndef test_example():\n    assert True\n"
+    : "from fastapi.testclient import TestClient\nfrom main import app\n\nclient = TestClient(app)\n\n\ndef test_example():\n    pass\n";
+  if(i<0){ S.files.push({ name, body: isTest ? testStarter : "" }); i=S.files.length-1; syncCode(); }
   switchFile(i);
 }
 function closeFile(i){
