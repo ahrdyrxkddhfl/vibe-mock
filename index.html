@@ -873,6 +873,659 @@ def test_09_batch(c):
     assert r.status_code == 200
     assert [x["category"] for x in r.json()] == ["환불", "배송"]
 </script>
+<script type="text/plain" id="hid-prelude-lib">
+import sys
+import os
+import importlib
+import pytest
+
+
+def _fresh_modules():
+    # 테스트마다 답안과 제공 라이브러리를 새로 불러와 남은 상태를 비움
+    work = os.getcwd()
+    for name, mod in list(sys.modules.items()):
+        f = getattr(mod, "__file__", None) or ""
+        if f.startswith(work) and not name.startswith(("hidden_check", "test_")):
+            del sys.modules[name]
+
+
+@pytest.fixture
+def sol():
+    _fresh_modules()
+    return importlib.import_module("solution")
+
+
+def lib(name):
+    # 답안이 불러온 것과 같은 제공 라이브러리 모듈
+    return importlib.import_module(name)
+
+</script>
+<script type="text/plain" id="hid-sw-lib-seat">
+def test_01_book_all(sol):
+    """빈 좌석 여러 개를 한 번에 잡고 요청 순서대로 돌려주는가"""
+    m = lib("seat_lib").SeatMap()
+    r = sol.book_group(m, "kim", ["B3", "B1", "B2"])
+    assert r == {"ok": True, "seats": ["B3", "B1", "B2"]}
+    assert [m.owner(s) for s in ("B1", "B2", "B3")] == ["kim"] * 3
+
+
+def test_02_rollback_taken(sol):
+    """중간 좌석이 이미 잡혀 있으면 이번에 잡은 좌석을 모두 푸는가"""
+    m = lib("seat_lib").SeatMap()
+    m.hold("A3", "lee")
+    r = sol.book_group(m, "kim", ["A1", "A2", "A3", "A4"])
+    assert r["ok"] is False and r["reason"] == "TAKEN" and r["seat"] == "A3"
+    assert m.is_free("A1") and m.is_free("A2") and m.is_free("A4")
+    assert m.owner("A3") == "lee"
+
+
+def test_03_rollback_no_such_seat(sol):
+    """없는 좌석이 섞이면 NO_SUCH_SEAT로 실패하고 잡은 좌석을 푸는가"""
+    m = lib("seat_lib").SeatMap()
+    r = sol.book_group(m, "kim", ["C1", "C01"])
+    assert r == {"ok": False, "reason": "NO_SUCH_SEAT", "seat": "C01"}
+    assert m.is_free("C1")
+
+
+def test_04_duplicate_before_hold(sol):
+    """같은 좌석이 두 번 있으면 hold를 부르기 전에 DUPLICATE로 거르는가"""
+    m = lib("seat_lib").SeatMap()
+    r = sol.book_group(m, "kim", ["D1", "D2", "D1"])
+    assert r == {"ok": False, "reason": "DUPLICATE", "seat": "D1"}
+    assert m.hold_calls == 0
+
+
+def test_05_empty_and_own_seat(sol):
+    """빈 목록은 EMPTY, 내가 이미 가진 좌석도 TAKEN으로 보는가"""
+    m = lib("seat_lib").SeatMap()
+    assert sol.book_group(m, "kim", []) == {"ok": False, "reason": "EMPTY", "seat": None}
+    sol.book_group(m, "kim", ["E5"])
+    r = sol.book_group(m, "kim", ["E4", "E5"])
+    assert r["reason"] == "TAKEN" and m.is_free("E4") and m.owner("E5") == "kim"
+
+
+def test_06_adjacent_leftmost(sol):
+    """빈 좌석이 붙어 있는 가장 왼쪽 묶음을 찾는가"""
+    m = lib("seat_lib").SeatMap()
+    for s in ("A3", "A6"):
+        m.hold(s, "x")
+    assert sol.find_adjacent(m, "A", 2) == ["A1", "A2"]
+    assert sol.find_adjacent(m, "A", 3) == ["A7", "A8", "A9"]
+    assert sol.find_adjacent(m, "A", 4) == ["A7", "A8", "A9", "A10"]
+
+
+def test_07_adjacent_none(sol):
+    """자리가 모자라거나 없는 열이면 None인가"""
+    m = lib("seat_lib").SeatMap(per_row=5)
+    m.hold("B3", "x")
+    assert sol.find_adjacent(m, "B", 2) == ["B1", "B2"]
+    assert sol.find_adjacent(m, "B", 3) is None
+    assert sol.find_adjacent(m, "B", 6) is None
+    assert sol.find_adjacent(m, "Z", 1) is None
+
+
+def test_08_adjacent_bad_n(sol):
+    """n이 1보다 작으면 ValueError인가"""
+    import pytest
+    m = lib("seat_lib").SeatMap()
+    with pytest.raises(ValueError):
+        sol.find_adjacent(m, "A", 0)
+</script>
+<script type="text/plain" id="start-sw-lib-seat">
+from seat_lib import SeatMap, SeatTaken, NoSuchSeat
+
+
+def book_group(seat_map, user, seats):
+    pass
+
+
+def find_adjacent(seat_map, row, n):
+    pass
+</script>
+<script type="text/plain" data-lib="sw-lib-seat" data-name="seat_lib.py">
+"""공연장 좌석 SDK (시험에서 제공하는 라이브러리예요. 고치지 마세요. 채점할 땐 원본으로 바뀌어요.)
+
+좌석 이름은 열 글자 + 번호예요. 예) "A1", "C10"
+"""
+
+
+class SeatError(Exception):
+    """좌석 관련 오류의 부모 클래스"""
+
+
+class SeatTaken(SeatError):
+    """이미 누군가 잡은 좌석"""
+
+
+class NoSuchSeat(SeatError):
+    """없는 좌석 이름 (예: "Z1", "A0", "A01", "A11")"""
+
+
+class SeatMap:
+    """한 회차의 좌석 배치도.
+
+    Args:
+        rows: 열 이름들. 기본 "ABCDE"
+        per_row: 한 열의 좌석 수. 기본 10
+    """
+
+    def __init__(self, rows: str = "ABCDE", per_row: int = 10):
+        self.rows = rows
+        self.per_row = per_row
+        self._owner = {}
+        self.hold_calls = 0  # hold()를 부른 횟수
+
+    def _check(self, seat: str) -> None:
+        if not isinstance(seat, str) or len(seat) < 2 or seat[0] not in self.rows:
+            raise NoSuchSeat(seat)
+        num = seat[1:]
+        if not num.isdigit() or num != str(int(num)) or not 1 <= int(num) <= self.per_row:
+            raise NoSuchSeat(seat)
+
+    def is_free(self, seat: str) -> bool:
+        """비어 있으면 True. 없는 좌석이면 NoSuchSeat"""
+        self._check(seat)
+        return seat not in self._owner
+
+    def hold(self, seat: str, user: str) -> None:
+        """좌석을 user 이름으로 잡아요. 이미 잡혀 있으면 SeatTaken, 없는 좌석이면 NoSuchSeat"""
+        self._check(seat)
+        self.hold_calls += 1
+        if seat in self._owner:
+            raise SeatTaken(seat)
+        self._owner[seat] = user
+
+    def release(self, seat: str) -> None:
+        """잡은 좌석을 풀어요. 비어 있으면 아무 일도 안 해요"""
+        self._check(seat)
+        self._owner.pop(seat, None)
+
+    def owner(self, seat: str):
+        """좌석을 잡은 사람 이름. 비어 있으면 None"""
+        self._check(seat)
+        return self._owner.get(seat)
+
+    def seats_in_row(self, row: str) -> list:
+        """그 열의 좌석 이름 목록(번호순). 없는 열이면 빈 목록"""
+        if not isinstance(row, str) or len(row) != 1 or row not in self.rows:
+            return []
+        return [f"{row}{i}" for i in range(1, self.per_row + 1)]
+</script>
+<script type="text/plain" id="hid-sw-lib-limit">
+import pytest
+
+
+def test_01_basic_limit(sol):
+    """한도까지만 허용하고 그다음은 거절하는가"""
+    r = sol.RateLimiter(3, 10)
+    assert [r.allow("u1", t) for t in (0, 1, 2, 3)] == [True, True, True, False]
+
+
+def test_02_window_boundary(sol):
+    """정확히 window초가 지난 호출은 빠지는가 (now-window, now] 구간"""
+    r = sol.RateLimiter(2, 10)
+    assert r.allow("u", 0) and r.allow("u", 5)
+    assert r.allow("u", 9.999) is False
+    assert r.allow("u", 10) is True
+
+
+def test_03_rejected_not_counted(sol):
+    """거절된 호출은 기록하지 않는가"""
+    r = sol.RateLimiter(1, 10)
+    assert r.allow("u", 0)
+    for t in range(1, 10):
+        assert r.allow("u", t) is False
+    assert r.allow("u", 10) is True
+
+
+def test_04_keys_separate(sol):
+    """키(사용자)마다 따로 세는가"""
+    r = sol.RateLimiter(1, 60)
+    assert r.allow("a", 0) and r.allow("b", 0)
+    assert r.allow("a", 1) is False and r.allow("b", 1) is False
+
+
+def test_05_remaining(sol):
+    """remaining이 남은 허용 횟수를 맞게 주고 호출로 기록하지 않는가"""
+    r = sol.RateLimiter(3, 10)
+    assert r.remaining("u", 0) == 3
+    r.allow("u", 0)
+    r.allow("u", 4)
+    assert r.remaining("u", 5) == 1
+    assert r.remaining("u", 5) == 1
+    assert r.remaining("u", 10) == 2
+
+
+def test_06_retry_after(sol):
+    """막혔을 때 다시 될 때까지 남은 초를, 안 막혔으면 0을 주는가"""
+    r = sol.RateLimiter(2, 10)
+    assert r.retry_after("u", 0) == 0
+    r.allow("u", 1)
+    r.allow("u", 4)
+    assert r.retry_after("u", 6) == pytest.approx(5)
+
+
+def test_07_bad_args(sol):
+    """limit이나 window가 1보다 작으면 ValueError인가"""
+    for a in ((0, 10), (3, 0), (-1, 5)):
+        with pytest.raises(ValueError):
+            sol.RateLimiter(*a)
+</script>
+<script type="text/plain" id="start-sw-lib-limit">
+class RateLimiter:
+    def __init__(self, limit, window):
+        pass
+
+    def allow(self, key, now):
+        pass
+
+    def remaining(self, key, now):
+        pass
+
+    def retry_after(self, key, now):
+        pass
+</script>
+<script type="text/plain" id="hid-de-lib-pos">
+def L(*xs):
+    return list(xs)
+
+
+def test_01_clean_basic(sol):
+    """정상 줄을 칸별로 나누고 금액을 정수로 바꾸는가"""
+    rows, rej = sol.clean(L("2026-10-20T10:00:00+09:00|GN01|T1|12000|CARD"))
+    assert rej == []
+    r = rows[0]
+    assert (r["store"], r["txn_id"], r["amount"], r["pay"]) == ("GN01", "T1", 12000, "CARD")
+    assert r["at"].utcoffset() is not None
+
+
+def test_02_reject_order(sol):
+    """거절 사유를 정해진 순서(FORMAT→TIME→AMOUNT→PAY→DUP)로 매기는가"""
+    rows, rej = sol.clean(L(
+        "2026-10-20T10:00:00+09:00|GN01|T1|12000",
+        "2026-10-20 10:00|GN01|T2|abc|BITCOIN",
+        "2026-10-20T10:00:00+09:00|GN01|T3|0|BITCOIN",
+        "2026-10-20T10:00:00+09:00|GN01|T4|500|card",
+    ))
+    assert [x["reason"] for x in rej] == ["FORMAT", "TIME", "AMOUNT", "PAY"]
+    assert [x["line_no"] for x in rej] == [1, 2, 3, 4]
+
+
+def test_03_timezone_required(sol):
+    """시간대가 없는 시각은 TIME으로 거절하는가"""
+    _, rej = sol.clean(L("2026-10-20T10:00:00|GN01|T1|1000|CASH"))
+    assert rej == [{"line_no": 1, "reason": "TIME"}]
+
+
+def test_04_amount_strict(sol):
+    """쉼표·소수·음수 금액을 AMOUNT로 거절하는가"""
+    _, rej = sol.clean(L(
+        "2026-10-20T10:00:00Z|GN01|T1|12,000|CARD",
+        "2026-10-20T10:00:00Z|GN01|T2|1000.0|CARD",
+        "2026-10-20T10:00:00Z|GN01|T3|-500|CARD",
+    ))
+    assert [x["reason"] for x in rej] == ["AMOUNT"] * 3
+
+
+def test_05_dup_only_after_accepted(sol):
+    """거절된 줄의 거래ID는 중복 판정에 쓰지 않는가"""
+    rows, rej = sol.clean(L(
+        "2026-10-20T10:00:00Z|GN01|T9|-1|CARD",
+        "2026-10-20T10:05:00Z|GN01|T9|3000|CARD",
+        "2026-10-20T10:06:00Z|GN01|T9|3000|CARD",
+    ))
+    assert len(rows) == 1 and rows[0]["amount"] == 3000
+    assert [x["reason"] for x in rej] == ["AMOUNT", "DUP"]
+
+
+def test_06_blank_and_spaces(sol):
+    """빈 줄은 건너뛰되 줄 번호는 세고, 칸 앞뒤 공백을 지우는가"""
+    rows, rej = sol.clean(L("", "   ", " 2026-10-20T10:00:00Z | GN02 | T1 | 700 | POINT ", "x|y"))
+    assert rows[0]["store"] == "GN02" and rows[0]["pay"] == "POINT" and rows[0]["amount"] == 700
+    assert rej == [{"line_no": 4, "reason": "FORMAT"}]
+
+
+def test_07_daily_kst(sol):
+    """UTC로 들어온 시각을 한국 날짜로 바꿔 매장·날짜별로 묶는가"""
+    rows, _ = sol.clean(L(
+        "2026-10-20T14:59:59Z|GN01|A|100|CARD",
+        "2026-10-20T15:00:00Z|GN01|B|200|CARD",
+        "2026-10-21T08:00:00+09:00|GN01|C|300|CASH",
+        "2026-10-21T08:00:00+09:00|GN02|D|400|CASH",
+    ))
+    d = sol.daily(rows)
+    assert d[("GN01", "2026-10-20")] == {"count": 1, "sum": 100}
+    assert d[("GN01", "2026-10-21")] == {"count": 2, "sum": 500}
+    assert d[("GN02", "2026-10-21")] == {"count": 1, "sum": 400}
+    assert len(d) == 3
+</script>
+<script type="text/plain" id="start-de-lib-pos">
+def clean(lines):
+    pass
+
+
+def daily(rows):
+    pass
+</script>
+<script type="text/plain" id="hid-de-lib-load">
+def E(seq, sku, qty, at):
+    return {"seq": seq, "sku": sku, "qty": qty, "updated_at": at}
+
+
+def env():
+    w = lib("warehouse_db")
+    return w.Table(), w.CheckpointStore()
+
+
+def test_01_basic_load(sol):
+    """새 이벤트를 적재하고 체크포인트를 가장 큰 seq로 옮기는가"""
+    t, c = env()
+    st = sol.load_increment(t, c, [E(1, "S1", 5, "2026-10-20T09:00:00+09:00"), E(2, "S2", 3, "2026-10-20T09:01:00+09:00")])
+    assert st == {"loaded": 2, "stale": 0, "invalid": 0, "skipped_old": 0, "checkpoint": 2}
+    assert c.read("inventory") == 2
+    assert t.get("S1") == {"sku": "S1", "qty": 5, "updated_at": "2026-10-20T09:00:00+09:00", "seq": 1}
+
+
+def test_02_rerun_idempotent(sol):
+    """같은 묶음을 다시 넣어도 쓰기가 늘지 않고 결과가 같은가"""
+    t, c = env()
+    batch = [E(1, "S1", 5, "2026-10-20T09:00:00Z"), E(2, "S1", 7, "2026-10-20T10:00:00Z")]
+    sol.load_increment(t, c, batch)
+    snap, writes = t.all(), t.writes
+    st = sol.load_increment(t, c, batch)
+    assert st["skipped_old"] == 2 and st["loaded"] == 0
+    assert t.all() == snap and t.writes == writes
+
+
+def test_03_out_of_order_seq(sol):
+    """seq가 섞여 들어와도 오름차순으로 처리하는가"""
+    t, c = env()
+    sol.load_increment(t, c, [E(3, "S1", 9, "2026-10-20T11:00:00Z"), E(1, "S1", 1, "2026-10-20T09:00:00Z"), E(2, "S1", 5, "2026-10-20T10:00:00Z")])
+    assert t.get("S1")["qty"] == 9 and t.get("S1")["seq"] == 3
+
+
+def test_04_stale_by_time_with_tz(sol):
+    """시간대가 달라도 실제 시각으로 비교해 늦은 값만 남기는가"""
+    t, c = env()
+    sol.load_increment(t, c, [E(1, "S1", 5, "2026-10-20T10:00:00Z")])
+    # 18:30+09:00 = 09:30Z → 더 이른 값이라 무시
+    st = sol.load_increment(t, c, [E(2, "S1", 99, "2026-10-20T18:30:00+09:00")])
+    assert st["stale"] == 1 and t.get("S1")["qty"] == 5
+    st = sol.load_increment(t, c, [E(3, "S1", 7, "2026-10-20T19:30:00+09:00")])
+    assert st["loaded"] == 1 and t.get("S1")["qty"] == 7
+
+
+def test_05_same_time_no_write(sol):
+    """updated_at이 같으면 쓰지 않는가"""
+    t, c = env()
+    sol.load_increment(t, c, [E(1, "S1", 5, "2026-10-20T10:00:00Z")])
+    w = t.writes
+    st = sol.load_increment(t, c, [E(2, "S1", 6, "2026-10-20T19:00:00+09:00")])
+    assert st["stale"] == 1 and t.writes == w and t.get("S1")["qty"] == 5
+
+
+def test_06_invalid(sol):
+    """빈 sku, 음수·불리언·문자 qty, 시간대 없는 시각을 invalid로 세는가"""
+    t, c = env()
+    st = sol.load_increment(t, c, [
+        E(1, "", 1, "2026-10-20T10:00:00Z"),
+        E(2, "S1", -1, "2026-10-20T10:00:00Z"),
+        E(3, "S1", True, "2026-10-20T10:00:00Z"),
+        E(4, "S1", "3", "2026-10-20T10:00:00Z"),
+        E(5, "S1", 3, "2026-10-20T10:00:00"),
+        E(6, "S1", 0, "2026-10-20T10:00:00Z"),
+    ])
+    assert st["invalid"] == 5 and st["loaded"] == 1 and t.get("S1")["qty"] == 0
+
+
+def test_07_checkpoint_includes_invalid(sol):
+    """invalid였던 이벤트의 seq까지 체크포인트에 넣는가 (다시 읽지 않도록)"""
+    t, c = env()
+    st = sol.load_increment(t, c, [E(4, "S1", 1, "2026-10-20T10:00:00Z"), E(9, "", 1, "2026-10-20T10:00:00Z")])
+    assert st["checkpoint"] == 9 and c.read("inventory") == 9
+
+
+def test_08_job_name_and_empty(sol):
+    """작업 이름별로 체크포인트를 따로 쓰고, 새 이벤트가 없으면 그대로 두는가"""
+    t, c = env()
+    c.write("daily", 50)
+    st = sol.load_increment(t, c, [], job="daily")
+    assert st["checkpoint"] == 50 and c.read("daily") == 50 and c.read("inventory") == 0
+</script>
+<script type="text/plain" id="start-de-lib-load">
+from warehouse_db import Table, CheckpointStore
+
+
+def load_increment(table, ckpt, events, job="inventory"):
+    pass
+</script>
+<script type="text/plain" data-lib="de-lib-load" data-name="warehouse_db.py">
+"""창고 재고 저장소 라이브러리 (시험에서 제공하는 라이브러리예요. 고치지 마세요. 채점할 땐 원본으로 바뀌어요.)"""
+
+
+class Table:
+    """키 하나에 행(dict) 하나를 두는 저장소. 실제 DB 테이블처럼 생각하면 돼요."""
+
+    def __init__(self):
+        self._rows = {}
+        self.writes = 0  # upsert()를 부른 횟수
+
+    def get(self, key):
+        """행 복사본. 없으면 None"""
+        row = self._rows.get(key)
+        return dict(row) if row is not None else None
+
+    def upsert(self, key, row: dict) -> None:
+        """없으면 넣고 있으면 통째로 바꿔요"""
+        self.writes += 1
+        self._rows[key] = dict(row)
+
+    def all(self) -> dict:
+        """{키: 행 복사본}"""
+        return {k: dict(v) for k, v in self._rows.items()}
+
+
+class CheckpointStore:
+    """작업 이름별로 '어디까지 처리했는지'(정수)를 기억해요. 처음엔 0"""
+
+    def __init__(self):
+        self._v = {}
+
+    def read(self, job: str) -> int:
+        return self._v.get(job, 0)
+
+    def write(self, job: str, value: int) -> None:
+        self._v[job] = value
+</script>
+<script type="text/plain" id="hid-ai-lib-retry">
+def M():
+    return lib("fake_llm")
+
+
+def test_01_ok_first_try(sol):
+    """한 번에 성공하면 답·토큰·시도 횟수 1을 주는가"""
+    c = M().FakeLLM()
+    r = sol.ask(c, "배송 지연 문의 요약해 줘")
+    assert r["ok"] is True and r["attempts"] == 1 and c.calls == 1
+    assert r["text"].startswith("답:") and r["tokens"] > 0
+
+
+def test_02_retry_backoff(sol):
+    """RateLimitError면 1,2초…로 두 배씩 기다리며 다시 하는가"""
+    m = M()
+    c = m.FakeLLM([m.RateLimitError, m.RateLimitError, "ok"])
+    r = sol.ask(c, "안녕", base_delay=1.0)
+    assert r["ok"] is True and r["attempts"] == 3
+    assert c.slept == [1.0, 2.0]
+
+
+def test_03_retry_limit(sol):
+    """재시도는 처음 시도를 빼고 max_retries번까지만 하는가"""
+    m = M()
+    c = m.FakeLLM([m.RateLimitError] * 10)
+    r = sol.ask(c, "안녕", max_retries=3, base_delay=0.5)
+    assert r == {"ok": False, "error": "RATE_LIMIT", "attempts": 4}
+    assert c.calls == 4 and c.slept == [0.5, 1.0, 2.0]
+
+
+def test_04_no_retry_bad_request(sol):
+    """BadRequestError는 다시 하지 않고 기다리지도 않는가"""
+    m = M()
+    c = m.FakeLLM([m.BadRequestError, "ok"])
+    r = sol.ask(c, "안녕")
+    assert r == {"ok": False, "error": "BAD_REQUEST", "attempts": 1}
+    assert c.calls == 1 and c.slept == []
+
+
+def test_05_empty_prompt(sol):
+    """빈 프롬프트(공백만)는 호출하지 않는가"""
+    c = M().FakeLLM()
+    assert sol.ask(c, "   ") == {"ok": False, "error": "EMPTY", "attempts": 0}
+    assert c.calls == 0
+
+
+def test_06_batch_budget_skip_and_continue(sol):
+    """예산이 모자란 프롬프트는 BUDGET으로 건너뛰고 다음 것은 계속하는가"""
+    c = M().FakeLLM()
+    long_p = "가" * 40           # 20토큰
+    short_p = "나" * 4           # 2토큰
+    out = sol.batch(c, [short_p, long_p, short_p], budget=12)
+    errs = [r.get("error") for r in out["results"]]
+    assert errs == [None, "BUDGET", None]
+    assert c.calls == 2
+    assert out["used"] == sum(r["tokens"] for r in out["results"] if r["ok"])
+
+
+def test_07_batch_failed_calls_no_tokens(sol):
+    """실패한 요청은 used에 넣지 않는가"""
+    m = M()
+    c = m.FakeLLM([m.BadRequestError])
+    out = sol.batch(c, ["질문1", "질문2"], budget=100)
+    assert out["results"][0]["error"] == "BAD_REQUEST" and out["results"][1]["ok"] is True
+    assert out["used"] == out["results"][1]["tokens"]
+</script>
+<script type="text/plain" id="start-ai-lib-retry">
+from fake_llm import FakeLLM, RateLimitError, BadRequestError
+
+
+def ask(client, prompt, max_retries=3, base_delay=1.0):
+    pass
+
+
+def batch(client, prompts, budget):
+    pass
+</script>
+<script type="text/plain" data-lib="ai-lib-retry" data-name="fake_llm.py">
+"""사내 LLM SDK (시험에서 제공하는 라이브러리예요. 고치지 마세요. 채점할 땐 원본으로 바뀌어요.)
+
+진짜 서버에 붙지 않는 연습용이에요. 어떤 호출이 실패할지는 script로 정해요.
+"""
+import math
+
+
+class LLMError(Exception):
+    """SDK 오류의 부모 클래스"""
+
+
+class RateLimitError(LLMError):
+    """호출이 너무 많음. 잠시 기다렸다가 다시 하면 될 수 있어요"""
+
+
+class BadRequestError(LLMError):
+    """요청 자체가 잘못됨. 다시 해도 안 돼요"""
+
+
+class FakeLLM:
+    """연습용 LLM 클라이언트.
+
+    Args:
+        script: 호출마다 무엇이 일어날지 순서대로 적은 목록.
+            "ok"면 성공, 예외 클래스(RateLimitError 등)면 그 예외가 나요.
+            목록이 끝나면 그 뒤로는 계속 성공해요.
+    """
+
+    def __init__(self, script=None):
+        self.script = list(script or [])
+        self.calls = 0      # complete()를 부른 횟수
+        self.slept = []     # sleep()에 넘긴 초 목록
+
+    def count_tokens(self, text: str) -> int:
+        """글자 2개를 토큰 1개로 셈 (최소 1)"""
+        return max(1, math.ceil(len(text) / 2))
+
+    def complete(self, prompt: str) -> dict:
+        """답을 받아요. 성공하면 {"text": 답, "tokens": 보낸 토큰 + 받은 토큰}"""
+        self.calls += 1
+        step = self.script.pop(0) if self.script else "ok"
+        if step != "ok":
+            raise step(f"{self.calls}번째 호출 실패")
+        text = "답: " + prompt[:10]
+        return {"text": text, "tokens": self.count_tokens(prompt) + self.count_tokens(text)}
+
+    def sleep(self, seconds: float) -> None:
+        """기다리기. 연습용이라 실제로 기다리지 않고 기록만 해요"""
+        self.slept.append(seconds)
+</script>
+<script type="text/plain" id="hid-ai-lib-mask">
+import pytest
+
+
+def test_01_phone_formats(sol):
+    """하이픈·공백·붙여 쓴 휴대폰 번호를 모두 010-****-뒤4자리로 바꾸는가"""
+    t = "연락처 010-1234-5678, 01098765432, 010 2222 3333 입니다"
+    assert sol.mask(t) == "연락처 010-****-5678, 010-****-5432, 010-****-3333 입니다"
+
+
+def test_02_phone_inside_longer_number(sol):
+    """더 긴 숫자 안에 들어 있는 010…은 건드리지 않는가"""
+    t = "주문번호 20101234567890 확인"
+    assert sol.mask(t) == t
+
+
+def test_03_email(sol):
+    """이메일은 아이디 첫 글자만 남기고 ***로 가리는가"""
+    assert sol.mask("메일 kim.cj@olive.co.kr 로") == "메일 k***@olive.co.kr 로"
+
+
+def test_04_rrn(sol):
+    """주민번호 모양(6자리-7자리)은 뒷자리를 *******로 가리는가"""
+    assert sol.mask("990101-1234567") == "990101-*******"
+    assert sol.mask("990101-12345678") == "990101-12345678"
+
+
+def test_05_no_pii(sol):
+    """개인정보가 없으면 그대로 돌려주는가"""
+    t = "배송이 3일째 안 와요. 확인 부탁드려요."
+    assert sol.mask(t) == t
+
+
+def test_06_chunk_overlap(sol):
+    """max_chars씩 자르며 앞 조각 끝 overlap글자를 겹치는가"""
+    assert sol.chunk("abcdefghij", 4, 1) == ["abcd", "defg", "ghij"]
+    assert sol.chunk("abcdefghijk", 4, 1) == ["abcd", "defg", "ghij", "jk"]
+
+
+def test_07_chunk_no_redundant_tail(sol):
+    """마지막 조각이 앞 조각에 다 들어 있으면 만들지 않는가"""
+    assert sol.chunk("abcdef", 4, 2) == ["abcd", "cdef"]
+    assert sol.chunk("abc", 5, 2) == ["abc"]
+    assert sol.chunk("", 5, 2) == []
+
+
+def test_08_chunk_bad_args(sol):
+    """overlap이 max_chars 이상이거나 음수, max_chars가 0 이하면 ValueError인가"""
+    for a in ((4, 4), (4, 5), (0, 0), (4, -1)):
+        with pytest.raises(ValueError):
+            sol.chunk("abcdef", *a)
+</script>
+<script type="text/plain" id="start-ai-lib-mask">
+def mask(text):
+    pass
+
+
+def chunk(text, max_chars, overlap):
+    pass
+</script>
 
 <script>
 (() => {
@@ -887,7 +1540,184 @@ const TRACKS = {
 
 const API_RULES = "main.py에 FastAPI 앱 객체 app을 만들어요. 저장은 메모리(dict 등)나 sqlite3 ':memory:'로 해요. 채점은 명세대로 동작하는지 테스트 케이스로 확인하고, 케이스마다 앱을 새로 시작해요. 이 화면에선 서버(uvicorn)를 띄울 수 없으니 TestClient로 확인해요.";
 
+const LIB_RULES = "solution.py에 함수·클래스를 만들어요. 채점은 숨은 테스트가 함수를 직접 불러 결과를 확인하고, 테스트마다 모듈을 새로 불러와요. 제공 라이브러리 파일은 고치지 마세요(채점할 땐 원본으로 바뀌어요). 직접 확인은 test_로 시작하는 파일에 pytest로 써서 테스트 버튼으로 돌려요.";
+
 const BANK = [
+{ id:"sw-lib-seat", track:"sw", type:"lib", title:"공연 좌석 묶음 예매 (좌석 SDK 활용)",
+  scenario:"공연 예매 서비스에 '여러 좌석 한 번에 예매'와 '붙은 자리 찾기'를 넣어요. 좌석을 잡고 푸는 일은 제공된 좌석 SDK(seat_lib.py)가 해요. SDK를 불러 써서 두 함수를 solution.py에 만들어요.",
+  spec:`[제공 라이브러리] seat_lib.py
+  SeatMap(rows="ABCDE", per_row=10)
+    .is_free(seat) -> bool            없는 좌석이면 NoSuchSeat
+    .hold(seat, user)                 잡혀 있으면 SeatTaken, 없는 좌석이면 NoSuchSeat
+    .release(seat)                    잡은 좌석 풀기
+    .owner(seat) -> str | None
+    .seats_in_row(row) -> [좌석 이름]  번호순. 없는 열이면 []
+  좌석 이름: 열 글자 + 번호 ("A1" ~ "E10"). "A01", "A0"은 없는 좌석
+
+[구현할 함수] solution.py
+book_group(seat_map, user, seats) -> dict
+  seats를 전부 잡거나, 하나도 안 잡아야 해요.
+  성공 → {"ok": True, "seats": seats와 같은 순서}
+  실패 → {"ok": False, "reason": 사유, "seat": 문제 좌석}
+    "EMPTY"         seats가 빈 목록 (seat는 None)
+    "DUPLICATE"     같은 좌석이 두 번 이상 (처음 겹친 좌석). hold를 부르기 전에 걸러요
+    "TAKEN"         이미 잡힌 좌석 (같은 user가 가진 좌석도 포함)
+    "NO_SUCH_SEAT"  없는 좌석
+  실패하면 이번 호출에서 잡은 좌석은 모두 풀어요.
+
+find_adjacent(seat_map, row, n) -> list | None
+  그 열에서 번호가 이어진 빈 좌석 n개 중 가장 왼쪽 묶음. 예) ["A7", "A8", "A9"]
+  없거나 없는 열이면 None. n < 1이면 ValueError`,
+  must:["book_group 성공: 요청 순서대로 돌려주기","실패하면 이번에 잡은 좌석 모두 풀기","EMPTY·DUPLICATE·TAKEN·NO_SUCH_SEAT 사유 구분","find_adjacent: 가장 왼쪽 묶음, 없으면 None","n < 1이면 ValueError"],
+  nice:["직접 쓴 테스트 코드 (test_solution.py)","README에 확인한 것·못 한 것"],
+  deliver:"solution.py, 테스트, README",
+  sample:`m = SeatMap()
+m.hold("A3", "lee")
+book_group(m, "kim", ["A1", "A2", "A3"])
+→ {"ok": False, "reason": "TAKEN", "seat": "A3"}   (A1, A2는 다시 빈 좌석)
+find_adjacent(m, "A", 2) → ["A1", "A2"]`,
+  hidden:["실패했을 때 앞에서 잡은 좌석을 되돌리는가","중복 좌석을 hold 전에 거르는가","내가 이미 가진 좌석도 TAKEN으로 보는가","자리가 모자라거나 없는 열에서 None을 주는가"] },
+{ id:"sw-lib-limit", track:"sw", type:"lib", title:"API 호출 한도 제한기 (표준 라이브러리)",
+  scenario:"쇼핑몰 앱의 쿠폰 API에 사용자별 호출 한도를 걸어요. 서버 없이 쓸 수 있는 RateLimiter 클래스를 solution.py에 만들어요. 시각은 숫자(초)로 넘겨받아요.",
+  spec:`[구현할 클래스] solution.py
+RateLimiter(limit, window)
+  limit: window초 동안 허용할 호출 수, window: 초
+  limit < 1 또는 window < 1 → ValueError
+
+  .allow(key, now) -> bool
+    (now - window, now] 구간에 허용된 호출이 limit개 미만이면 True를 주고 이 호출을 기록
+    아니면 False (거절된 호출은 기록하지 않음)
+    예) window=10이면 0초에 허용된 호출은 10초 시점부터 빠져요
+  .remaining(key, now) -> int      지금 더 허용할 수 있는 횟수. 기록은 바꾸지 않음
+  .retry_after(key, now) -> float  막혀 있으면 다시 허용될 때까지 남은 초, 아니면 0
+
+  key(사용자)마다 따로 세요. now는 줄어들지 않는다고 가정해도 돼요.`,
+  must:["limit개까지 허용하고 그다음 거절","구간 경계 (now - window, now]를 정확히","거절된 호출은 세지 않기","키별로 따로 세기","remaining, retry_after","잘못된 인자는 ValueError"],
+  nice:["직접 쓴 테스트 코드 (test_solution.py)","README에 자료구조를 고른 이유"],
+  deliver:"solution.py, 테스트, README",
+  sample:`r = RateLimiter(2, 10)
+r.allow("u1", 0)        → True
+r.allow("u1", 5)        → True
+r.allow("u1", 9)        → False
+r.retry_after("u1", 9)  → 1
+r.allow("u1", 10)       → True   (0초 호출이 빠짐)`,
+  hidden:["정확히 window초 지난 호출이 빠지는가","거절된 호출이 기록돼 한도를 더 깎지 않는가","remaining이 호출을 기록하지 않는가","사용자끼리 섞이지 않는가"] },
+{ id:"de-lib-pos", track:"de", type:"lib", title:"매장 POS 로그 정제·일별 집계 (표준 라이브러리)",
+  scenario:"전국 매장 POS가 거래를 한 줄짜리 텍스트로 보내요. 깨진 줄은 사유와 함께 따로 빼고, 정상 거래만 모아 매장·날짜별로 집계하는 함수 두 개를 solution.py에 만들어요.",
+  spec:`[입력 한 줄] "시각|매장|거래ID|금액|결제수단"
+  예) "2026-10-20T23:40:00Z|GN01|T1001|12000|CARD"
+
+[구현할 함수] solution.py
+clean(lines) -> (rows, rejects)
+  rows: [{"at": datetime(시간대 포함), "store", "txn_id", "amount": int, "pay"}]  입력 순서대로
+  rejects: [{"line_no": 몇 번째 줄(1부터), "reason": 사유}]
+  사유 (이 순서로 검사, 처음 걸린 것 하나만)
+    "FORMAT"  칸이 5개가 아님
+    "TIME"    ISO 8601이 아니거나 시간대(Z, +09:00 등)가 없음
+    "AMOUNT"  숫자로만 된 1 이상 정수가 아님 ("12,000", "1000.0", "-5", "0" 모두 거절)
+    "PAY"     CARD, CASH, POINT(대문자)가 아님
+    "DUP"     앞에서 이미 rows에 넣은 거래ID
+  칸마다 앞뒤 공백은 지워요. 빈 줄(공백만)은 건너뛰고 rejects에도 넣지 않아요(줄 번호는 세요).
+
+daily(rows) -> {(매장, "YYYY-MM-DD"): {"count": 건수, "sum": 금액 합}}
+  날짜는 한국 시각(UTC+9) 기준`,
+  must:["clean: 정상 줄 파싱 (금액 int, 시각 datetime)","거절 사유 5가지와 검사 순서","DUP은 rows에 들어간 거래ID만 기준","빈 줄·공백 처리와 줄 번호","daily: 한국 날짜 기준 매장별 집계"],
+  nice:["직접 쓴 테스트 코드 (test_solution.py)","README에 거절 기준 정리"],
+  deliver:"solution.py, 테스트, README",
+  sample:`lines = [
+  "2026-10-20T14:30:00Z|GN01|T1|12000|CARD",
+  "2026-10-20T16:10:00Z|GN01|T2|8000|CASH",
+  "2026-10-21T09:00:00+09:00|GN01|T2|8000|CASH",
+  "2026-10-21T10:00|GN02|T3|5000|CARD",
+]
+rows, rejects = clean(lines)
+rejects → [{"line_no": 3, "reason": "DUP"}, {"line_no": 4, "reason": "TIME"}]
+daily(rows) → {("GN01", "2026-10-20"): {"count": 1, "sum": 12000},
+               ("GN01", "2026-10-21"): {"count": 1, "sum": 8000}}`,
+  hidden:["UTC로 온 밤 시간이 한국 날짜로 다음 날에 들어가는가","거절된 줄의 거래ID 때문에 정상 거래를 DUP으로 버리지 않는가","시간대 없는 시각을 거절하는가","빈 줄을 건너뛰어도 줄 번호가 맞는가"] },
+{ id:"de-lib-load", track:"de", type:"lib", title:"창고 재고 증분 적재 (저장소 라이브러리 활용)",
+  scenario:"물류 창고에서 재고 변경 이벤트가 계속 쌓여요. 제공된 저장소 라이브러리(warehouse_db.py)를 써서, 지난번 이후 새로 들어온 이벤트만 적재하는 함수를 solution.py에 만들어요. 같은 묶음이 다시 들어와도 결과가 같아야 해요.",
+  spec:`[제공 라이브러리] warehouse_db.py
+  Table()            .get(key) -> 행 dict | None   .upsert(key, row)   .all() -> {키: 행}
+                     .writes  upsert를 부른 횟수
+  CheckpointStore()  .read(job) -> int (처음엔 0)   .write(job, value)
+
+[구현할 함수] solution.py
+load_increment(table, ckpt, events, job="inventory") -> dict
+  events: [{"seq": int, "sku": str, "qty": int, "updated_at": ISO 8601 문자열}]  seq 순서가 섞여 올 수 있어요
+  1. seq가 ckpt.read(job) 이하인 이벤트는 이미 처리한 것 → 건너뜀 (skipped_old)
+  2. 나머지를 seq 오름차순으로 처리
+  3. 잘못된 이벤트는 적재하지 않음 (invalid)
+     sku가 빈 문자열이거나 없음 / qty가 정수가 아니거나(True·False 포함) 음수 / updated_at에 시간대가 없거나 형식 오류
+  4. 키는 sku. 이미 있는 행보다 updated_at(실제 시각)이 늦을 때만 upsert. 같거나 이르면 쓰지 않음 (stale)
+     행 모양: {"sku", "qty", "updated_at": 받은 문자열 그대로, "seq"}
+  5. 끝나면 ckpt.write(job, 이번에 본 가장 큰 seq). invalid였던 이벤트도 포함. 새 이벤트가 없으면 그대로
+  반환: {"loaded", "stale", "invalid", "skipped_old", "checkpoint"}`,
+  must:["체크포인트 이하 seq 건너뛰기","seq 오름차순으로 처리","잘못된 이벤트 거르기 (invalid)","updated_at을 실제 시각으로 비교해 늦은 값만 쓰기","같은 묶음을 다시 넣어도 쓰기 없음 (멱등)","체크포인트 갱신 (invalid 포함)"],
+  nice:["직접 쓴 테스트 코드 (test_solution.py)","README에 멱등성을 지킨 방법"],
+  deliver:"solution.py, 테스트, README",
+  sample:`t, c = Table(), CheckpointStore()
+load_increment(t, c, [
+  {"seq": 2, "sku": "S1", "qty": 7, "updated_at": "2026-10-20T10:00:00Z"},
+  {"seq": 1, "sku": "S1", "qty": 5, "updated_at": "2026-10-20T09:00:00Z"},
+])
+→ {"loaded": 2, "stale": 0, "invalid": 0, "skipped_old": 0, "checkpoint": 2}
+t.get("S1") → {"sku": "S1", "qty": 7, "updated_at": "2026-10-20T10:00:00Z", "seq": 2}`,
+  hidden:["시간대가 다른 updated_at을 글자가 아니라 실제 시각으로 비교하는가","같은 묶음을 다시 넣어도 쓰기 횟수가 늘지 않는가","qty=True를 정수로 받아들이지 않는가","invalid 이벤트의 seq까지 체크포인트에 넣는가"] },
+{ id:"ai-lib-retry", track:"ai", type:"lib", title:"LLM SDK 재시도·토큰 예산 래퍼 (SDK 활용)",
+  scenario:"상담 요약 기능이 사내 LLM SDK(fake_llm.py)를 불러요. 호출이 몰리면 RateLimitError가 나고, 토큰 예산도 정해져 있어요. SDK를 감싸 재시도와 예산 관리를 하는 함수 두 개를 solution.py에 만들어요.",
+  spec:`[제공 라이브러리] fake_llm.py
+  FakeLLM(script=None)
+    .complete(prompt) -> {"text", "tokens"}   실패하면 RateLimitError 또는 BadRequestError
+    .count_tokens(text) -> int                 글자 2개 = 1토큰 (최소 1)
+    .sleep(seconds)                            기다리기 (연습용이라 기록만 해요)
+    .calls  complete를 부른 횟수   .slept  sleep에 넘긴 초 목록
+  RateLimitError: 잠시 뒤 다시 하면 될 수 있음 / BadRequestError: 다시 해도 안 됨
+
+[구현할 함수] solution.py
+ask(client, prompt, max_retries=3, base_delay=1.0) -> dict
+  성공 → {"ok": True, "text", "tokens", "attempts": 시도 횟수}
+  실패 → {"ok": False, "error": "RATE_LIMIT" | "BAD_REQUEST" | "EMPTY", "attempts"}
+  - RateLimitError면 client.sleep(base_delay × 2^(재시도 번호-1))만큼 기다리고 다시 해요
+    예) base_delay=1 → 1초, 2초, 4초…   재시도는 처음 시도를 빼고 최대 max_retries번
+  - BadRequestError는 다시 하지 않아요 (기다리지도 않음)
+  - prompt가 비었거나 공백뿐이면 호출하지 않고 EMPTY, attempts 0
+
+batch(client, prompts, budget) -> {"results": [ask 결과...], "used": 쓴 토큰 합}
+  - 순서대로 ask해요. 부르기 전에 client.count_tokens(prompt)가 남은 예산(budget - used)보다 크면
+    부르지 않고 {"ok": False, "error": "BUDGET", "attempts": 0}. 다음 프롬프트는 계속 시도
+  - used에는 성공한 호출의 tokens만 더해요`,
+  must:["ask 성공 결과 모양","RateLimitError 재시도와 두 배씩 늘어나는 대기","재시도 횟수 한도 (max_retries)","BadRequestError는 바로 실패","빈 프롬프트는 호출 안 함","batch: 예산 확인 후 건너뛰고 계속"],
+  nice:["직접 쓴 테스트 코드 (test_solution.py)","README에 재시도 정책 설명"],
+  deliver:"solution.py, 테스트, README",
+  sample:`from fake_llm import FakeLLM, RateLimitError
+c = FakeLLM([RateLimitError, "ok"])
+ask(c, "배송 지연 문의 요약")
+→ {"ok": True, "text": "답: 배송 지연 문의 요", "tokens": 13, "attempts": 2}
+c.slept → [1.0]`,
+  hidden:["max_retries=3이면 총 4번까지만 부르는가","대기 시간이 1, 2, 4초로 늘어나는가","BadRequestError에 다시 시도하지 않는가","예산이 모자란 프롬프트 뒤의 짧은 프롬프트는 계속 처리하는가"] },
+{ id:"ai-lib-mask", track:"ai", type:"lib", title:"상담 로그 개인정보 마스킹·청크 분할 (표준 라이브러리)",
+  scenario:"고객 상담 기록을 LLM에 넣기 전에 개인정보를 가리고, 긴 글을 일정 길이로 잘라야 해요. re 같은 표준 라이브러리로 함수 두 개를 solution.py에 만들어요.",
+  spec:`[구현할 함수] solution.py
+mask(text) -> str
+  휴대폰: 010-1234-5678, 01012345678, 010 1234 5678 → "010-****-5678" (모양 통일)
+          앞뒤가 숫자로 이어진 더 긴 숫자 안의 010…은 건드리지 않아요
+  이메일: kim.cj@olive.co.kr → "k***@olive.co.kr" (아이디 첫 글자 + ***)
+  주민번호 모양: 990101-1234567 → "990101-*******" (앞뒤가 숫자로 이어지면 건드리지 않음)
+  나머지 글자는 그대로
+
+chunk(text, max_chars, overlap) -> list[str]
+  max_chars 글자씩 자르고, 다음 조각은 앞 조각 끝 overlap 글자를 겹쳐 시작해요
+  예) chunk("abcdefghij", 4, 1) → ["abcd", "defg", "ghij"]
+  마지막 조각이 앞 조각에 다 들어 있으면 만들지 않아요. 빈 문자열 → []
+  max_chars <= 0, overlap < 0, overlap >= max_chars → ValueError`,
+  must:["휴대폰 세 가지 모양 마스킹","긴 숫자 안의 010은 그대로 두기","이메일 마스킹","주민번호 모양 마스킹","chunk 겹쳐 자르기","잘못된 인자는 ValueError"],
+  nice:["직접 쓴 테스트 코드 (test_solution.py)","README에 못 잡는 경우 적기"],
+  deliver:"solution.py, 테스트, README",
+  sample:`mask("연락처 01012345678, 메일 kim.cj@olive.co.kr")
+→ "연락처 010-****-5678, 메일 k***@olive.co.kr"
+chunk("abcdefghijk", 4, 1) → ["abcd", "defg", "ghij", "jk"]`,
+  hidden:["붙여 쓴 번호·공백 번호까지 잡는가","주문번호 같은 긴 숫자를 잘못 가리지 않는가","마지막에 쓸모없는 조각을 만들지 않는가","overlap이 max_chars 이상일 때 멈추지 않고 ValueError를 내는가"] },
 { id:"sw-parcel", track:"sw", type:"api", title:"택배 배송 상태 API",
   scenario:"가상의 택배사가 송장별 배송 상태를 보여 주는 API가 필요해요. 현장 스캐너가 상태 이벤트를 보내고, 고객은 송장 번호로 지금 상태와 지난 이력을 봐요.",
   api:`POST /parcels                {"tracking_no","receiver","dest"}
@@ -1070,7 +1900,22 @@ const CRITERIA = [
 const TOKEN_TARGET = { 60:25000, 90:35000, 120:45000 };
 const tokenTarget = () => TOKEN_TARGET[S.minutes] || 45000;
 const hiddenCode = id => { const el=document.getElementById("hid-"+id); return el ? el.textContent : ""; };
-const hasHidden = T => !!T && (T.type==="api") && !!(T.hiddenCode || hiddenCode(T.id));
+const hasHidden = T => !!T && (T.type==="api" || T.type==="lib") && !!(T.hiddenCode || hiddenCode(T.id));
+const TYPE_NAMES = { lib:"라이브러리형", api:"API 구현", data:"데이터·분석형" };
+const typeName = T => TYPE_NAMES[T && T.type] || "데이터·분석형";
+// 라이브러리형: 시험에서 주는 라이브러리 파일 {파일명: 내용}. AI 출제 문제는 T.libFiles에 들어 있음
+function libFilesOf(T){
+  if(!T || T.type!=="lib") return {};
+  if(T.libFiles && typeof T.libFiles==="object") return T.libFiles;
+  const out = {};
+  document.querySelectorAll(`script[data-lib="${T.id}"]`).forEach(el => { out[el.dataset.name] = el.textContent.replace(/^\n/,""); });
+  return out;
+}
+function starterOf(T){
+  if(!T) return "";
+  if(T.type==="lib"){ const el=document.getElementById("start-"+T.id); return T.starter || (el ? el.textContent.replace(/^\n/,"") : "# 여기에 풀이를 작성하세요\n"); }
+  return T.type==="api" ? STARTER_API : STARTER_DATA;
+}
 
 /* 시험장 AI 성능. 실제 시험 AI가 기대보다 약할 때를 대비하는 연습용 */
 const LEVELS = {
@@ -1097,12 +1942,15 @@ let history = [];
 let gradeCtl = null, chatCtl = null, chatBusy = false;
 
 function freshState(){
-  return { view:"home", track:"de", minutes:120, env:"builtin", aiLevel:"mid", ptype:"api", runs:0, hiddenRes:null, task:null, source:"bank",
+  return { view:"home", track:"de", minutes:120, env:"builtin", aiLevel:"mid", ptype:"lib", libSeen:true, runs:0, hiddenRes:null, task:null, source:"bank",
     startedAt:null, pausedAt:null, pausedMs:0, finishedAt:null, tab:"q",
     done:{}, chat:[], usage:{calls:0,inChars:0,outChars:0}, attach:true, leaves:0,
     log:"", code:"", codePrev:null, run:"", readme:"", result:null, selfScores:{}, selfHidden:{}, saved:false };
 }
-function loadDraft(){ try{ const t=localStorage.getItem(DRAFT_KEY); return t?Object.assign(freshState(),JSON.parse(t)):null; }catch(e){ return null; } }
+function loadDraft(){ try{ const t=localStorage.getItem(DRAFT_KEY); if(!t) return null;
+  const d=Object.assign(freshState(),JSON.parse(t));
+  if(!JSON.parse(t).libSeen){ d.ptype="lib"; d.libSeen=true; }  // 라이브러리형이 생기기 전 기록이면 기본 유형을 라이브러리형으로
+  return d; }catch(e){ return null; } }
 let saveTimer=null;
 function saveDraft(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>{ try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(S)); }catch(e){} },300); }
 
@@ -1131,7 +1979,7 @@ function viewSetup(){
     `<button class="choice" data-track="${k}" aria-pressed="${S.track===k}"><b>${esc(t.name)}</b><small>${esc(t.desc)}</small></button>`).join("");
   const minBtns = [60,90,120].map(m => `<button class="choice" data-min="${m}" aria-pressed="${S.minutes===m}"><b>${m}분</b></button>`).join("");
   const count = pool().length;
-  const ptypes = [["api","API 구현","숨은 테스트로 자동 채점"],["data","데이터·분석형","AI가 코드를 읽고 채점"],["all","섞어서",""]];
+  const ptypes = [["lib","라이브러리형","함수·클래스 구현 · 숨은 테스트 채점"],["api","API 구현","숨은 테스트로 자동 채점"],["data","데이터·분석형","AI가 코드를 읽고 채점"],["all","섞어서",""]];
   return `
   ${mast()}
   <div class="notice">
@@ -1139,8 +1987,8 @@ function viewSetup(){
     <dl class="facts">
       <div><dt><span class="chip ok">확인</span>형식</dt><dd>개발 직무는 AI와 협업해 실제 결과물을 구현하는 시험. 기존 알고리즘 코딩테스트는 폐지됐어요.</dd></div>
       <div><dt><span class="chip ok">확인</span>순서</dt><dd>서류 → AI 역량진단 → 1·2차 면접 → 3주 이내 인턴십.</dd></div>
-      <div><dt><span class="chip guess">설명회 카더라</span>시험 환경</dt><dd>예전 코테에서 프로그래머스 링크를 주던 것처럼 회사가 AI 플랫폼 링크를 주고, 그 안에서 문제를 보고 구현해요.</dd></div>
-      <div><dt><span class="chip guess">설명회 카더라</span>문제</dt><dd>알고리즘보다 API 코드 짜기라는 말이 더 많아요. 확정은 아니에요.</dd></div>
+      <div><dt><span class="chip ok">응시 안내</span>시험 환경</dt><dd>구름 Devth 설치형 브라우저(앱)에서 2시간(15~17시). 웹캠·스마트폰 감독, 플랫폼 안에서 주는 AI 도구를 써요.</dd></div>
+      <div><dt><span class="chip ok">응시 안내</span>문제</dt><dd>라이브러리형 2문항. 언어는 C, C++, Java, JavaScript, Python 중 선택. '라이브러리형'의 정확한 뜻은 공개되지 않았어요. 이 연습장은 함수·클래스를 만들고 숨은 테스트로 채점하는 모양으로 냈어요.</dd></div>
       <div><dt><span class="chip guess">설명회 카더라</span>채점</dt><dd>구현을 완성했는지에 더해 AI와의 대화 맥락, 토큰을 효율적으로 썼는지도 봐요.</dd></div>
     </dl>
   </div>
@@ -1396,7 +2244,9 @@ const STARTER_DATA = "# 여기에 풀이를 작성하세요\n";
 function serializeFiles(files){ return files.map(f => `# --- ${f.name} ---\n${f.body.replace(/\s+$/,"")}\n`).join("\n"); }
 function ensureFiles(){
   if(Array.isArray(S.files) && S.files.length) return;
-  const parsed = S.code && S.code.trim() ? parseFiles(S.code) : { "main.py": (S.task && S.task.type==="api") ? STARTER_API : STARTER_DATA };
+  const parsed = S.code && S.code.trim() ? parseFiles(S.code)
+    : (S.task && S.task.type==="lib") ? Object.assign({ "solution.py": starterOf(S.task) }, libFilesOf(S.task))
+    : { "main.py": starterOf(S.task) };
   S.files = Object.entries(parsed).map(([name, body]) => ({ name, body }));
   S.active = 0;
   S.code = serializeFiles(S.files);
@@ -1409,12 +2259,13 @@ function paneQuestion(){
   const reqs = T.must.map((r,i)=>`<li><label><input type="checkbox" id="req-${i}" data-req="${i}" ${S.done[i]?"checked":""}><span>${esc(r)}</span></label></li>`).join("");
   const nice = T.nice.map((r,i)=>`<li><label><input type="checkbox" id="nice-${i}" data-nice="${i}" ${S.done["n"+i]?"checked":""}><span>${esc(r)}</span></label></li>`).join("");
   return `
-  <div class="qhead"><span class="qnum">${S.source==="ai"?"AI 출제":"문제은행"} · ${esc(TRACKS[T.track]?.name||"")} · ${T.type==="api"?"API 구현":"데이터·분석형"}</span><h2 class="qtitle">${esc(T.title)}</h2></div>
+  <div class="qhead"><span class="qnum">${S.source==="ai"?"AI 출제":"문제은행"} · ${esc(TRACKS[T.track]?.name||"")} · ${typeName(T)}</span><h2 class="qtitle">${esc(T.title)}</h2></div>
   <p>${esc(T.scenario)}</p>
   ${T.api?`<div class="block"><h3>API 명세</h3><pre>${esc(T.api)}</pre><p class="muted small">${esc(API_RULES)}</p></div>`:""}
+  ${T.spec?`<div class="block"><h3>명세</h3><pre>${esc(T.spec)}</pre><p class="muted small">${esc(LIB_RULES)}${Object.keys(libFilesOf(T)).length?` 제공 파일: ${Object.keys(libFilesOf(T)).map(esc).join(", ")} (코드 창 탭)`:""}</p></div>`:""}
   <div class="block"><h3>필수 요구사항 <span class="tag">끝낸 것에 체크</span></h3><ul class="reqs">${reqs}</ul></div>
   <div class="block"><h3>가산점</h3><ul class="reqs">${nice}</ul></div>
-  <div class="block"><h3>입력 예시</h3><pre>${esc(T.sample)}</pre></div>
+  <div class="block"><h3>${T.type==="lib"?"사용 예시":"입력 예시"}</h3><pre>${esc(T.sample)}</pre></div>
   <div class="block"><h3>제출물</h3><p>${esc(T.deliver)}</p></div>`;
 }
 
@@ -1432,7 +2283,7 @@ function paneChat(){
     <div class="composer">
       <textarea id="ask" style="height:${(S.layout&&S.layout.ah)||AI_INPUT.def}px" placeholder="예) 아래 명세로 엔드포인트 목록과 데이터 구조부터 정리해 줘. 코드는 아직 쓰지 마. (Ctrl+Enter 보내기)" ${on?"":"disabled"}></textarea>
       <div class="opts">
-        <span class="actions"><label class="chk"><input type="checkbox" id="attach" ${S.attach?"checked":""}> 답안 코드 같이 보내기</label>${S.task&&S.task.api?`<button class="linkbtn" id="pasteSpec">명세 붙여넣기</button>`:""}</span>
+        <span class="actions"><label class="chk"><input type="checkbox" id="attach" ${S.attach?"checked":""}> 답안 코드 같이 보내기</label>${S.task&&(S.task.api||S.task.spec)?`<button class="linkbtn" id="pasteSpec">명세 붙여넣기</button>`:""}</span>
         <span class="actions"><button class="btn ghost sm" id="stopChat" hidden>멈추기</button><button class="btn sm" id="send" ${on?"":"disabled"}>보내기</button></span>
       </div>
       <p class="status" id="chatStatus"></p>
@@ -1519,7 +2370,7 @@ function insertIntoEditor(text){
   if(cm){
     cm.focus();
     const v = cm.getValue().trim();
-    if(!v || v === STARTER_API.trim() || v === STARTER_DATA.trim()) cm.setValue(text); else cm.replaceSelection(text);
+    if(!v || v === STARTER_API.trim() || v === STARTER_DATA.trim() || v === starterOf(S.task).trim()) cm.setValue(text); else cm.replaceSelection(text);
     return;
   }
   const af = activeFile();
@@ -1698,13 +2549,13 @@ function runHidden(onStatus){
   return new Promise(resolve => {
     if(runBusy){ killWorker(); setRunBusy(false); }
     const T = S.task;
-    const code = hiddenCode("prelude") + "\n" + (T.hiddenCode || hiddenCode(T.id));
+    const code = hiddenCode(T.type==="lib" ? "prelude-lib" : "prelude") + "\n" + (T.hiddenCode || hiddenCode(T.id));
     hiddenWait = { resolve, onStatus: onStatus || (()=>{}) };
     setRunBusy(true);
     try{
       const w = getWorker();
       bootTimer = setTimeout(()=>{ killWorker(); finishHidden({error:"실행 환경을 불러오지 못했어요(시간 초과)."}); }, BOOT_LIMIT_MS);
-      w.postMessage({ type:"run", cmd:"hidden", files:parseFiles(S.code), hidden:code });
+      w.postMessage({ type:"run", cmd:"hidden", files:Object.assign(parseFiles(S.code), libFilesOf(T)), hidden:code });
     }catch(e){ killWorker(); finishHidden({error:"이 화면에서 파이썬을 띄우지 못했어요."}); }
   });
 }
@@ -1725,7 +2576,8 @@ function runCode(cmd){
   const names = Object.keys(files);
   if(!S.code.trim()){ setRunStatus("답안 코드가 비어 있어요.", true); return; }
   let entry = "main.py";
-  if(cmd==="run" && !files["main.py"]){ entry = names.find(n=>n.endsWith(".py") && !/(^|\/)test_|_test\.py$/.test(n)); if(!entry){ setRunStatus("실행할 .py 파일이 없어요.", true); return; } }
+  if(cmd==="run" && !files["main.py"] && files["solution.py"]) entry = "solution.py";
+  else if(cmd==="run" && !files["main.py"]){ entry = names.find(n=>n.endsWith(".py") && !/(^|\/)test_|_test\.py$/.test(n)); if(!entry){ setRunStatus("실행할 .py 파일이 없어요.", true); return; } }
   if(cmd==="test" && !names.some(n=>/(^|\/)test_[^\/]*\.py$|_test\.py$/.test(n))){ setRunStatus("test_로 시작하는 파일이 없어요. # --- test_main.py --- 로 테스트 파일을 만들어 주세요.", true); return; }
   S.runs++;
   appendRun(`${S.run.trim()?"\n":""}$ ${cmd==="test"?"pytest -q":"python "+entry}   (${new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})})\n`);
@@ -1981,9 +2833,10 @@ function sampleErr(e, fallback){
 async function generateTask(){
   const st = document.getElementById("genStatus"), btn = document.getElementById("startAI");
   btn.disabled = true; st.className="status"; st.textContent = "문제를 만드는 중이에요. 1분쯤 걸릴 수 있어요.";
-  const api = S.ptype==="api" || (S.ptype==="all" && Math.random()<0.7);
-  const ex = BANK.find(t=>t.track===S.track && t.type===(api?"api":"data")) || BANK.find(t=>t.track===S.track);
-  const exObj = {title:ex.title,scenario:ex.scenario,api:ex.api,must:ex.must,nice:ex.nice,deliver:ex.deliver,sample:ex.sample,hidden:ex.hidden};
+  const kind = S.ptype==="all" ? (Math.random()<0.6 ? "lib" : "api") : S.ptype;
+  const api = kind==="api", libk = kind==="lib";
+  const ex = BANK.find(t=>t.track===S.track && t.type===kind) || BANK.find(t=>t.track===S.track && t.type===(api?"api":"data")) || BANK.find(t=>t.track===S.track);
+  const exObj = {title:ex.title,scenario:ex.scenario,api:ex.api,spec:ex.spec,must:ex.must,nice:ex.nice,deliver:ex.deliver,sample:ex.sample,hidden:ex.hidden};
   const apiPart = api ? `
 이번 과제는 FastAPI로 만드는 API 구현 과제야. api에는 엔드포인트, 요청·응답 JSON 필드, 상태 코드, 규칙을 예시처럼 빠짐없이 적어. 응답 모양이 모호하면 안 돼.
 tests에는 숨은 채점용 pytest 코드를 써. 규칙:
@@ -1991,7 +2844,15 @@ tests에는 숨은 채점용 pytest 코드를 써. 규칙:
 - 테스트 함수 6~8개, 이름은 test_01_..., 각 함수 첫 줄에 한국어 한 줄 docstring.
 - 명세에 적힌 것만 확인해. 명세에 없는 필드·상태 코드를 기대하지 마. 오류 코드는 (400, 422)처럼 명세가 허용한 범위로 확인해.
 - 테스트마다 앱 상태가 비어 있다고 가정하고, 필요한 데이터는 그 테스트 안에서 만들어.
-- 표준 라이브러리만 import 가능.` : "";
+- 표준 라이브러리만 import 가능.` : libk ? `
+이번 과제는 '라이브러리형'이야. 응시자는 solution.py에 함수나 클래스를 만들어. 둘 중 하나로 내: (가) 과제용 라이브러리 파일 하나를 주고 그걸 불러 써서 구현 (나) 파이썬 표준 라이브러리(re, datetime, collections 등)로 구현.
+spec에는 [제공 라이브러리](가 일 때만: 클래스·함수와 동작·예외)와 [구현할 함수](이름, 인자, 반환 모양, 오류 규칙)를 예시처럼 빠짐없이 적어. 반환 모양이 모호하면 안 돼.
+starter에는 solution.py 시작 코드(import와 빈 함수, 본문은 pass)를 써.
+libFiles는 (가)일 때만 {"파일명.py": 파이썬 코드}. 표준 라이브러리만 쓰고, 상태는 객체 안에 둬. (나)면 {}.
+tests에는 숨은 채점용 pytest 코드를 써. 규칙:
+- 이미 정의된 fixture sol(새로 불러온 solution 모듈)과 함수 lib(모듈 이름)(제공 라이브러리 모듈)을 그대로 써. 제공 라이브러리 객체는 lib("파일명에서 .py 뺀 이름").클래스() 로 만들어. fixture 정의는 쓰지 마.
+- 테스트 함수 6~8개, 이름은 test_01_..., 첫 인자는 sol, 각 함수 첫 줄에 한국어 한 줄 docstring.
+- 명세에 적힌 것만 확인해. 표준 라이브러리와 pytest만 import 가능.` : "";
   const prompt = `너는 한국 IT 서비스 기업 신입 채용의 '바이브 코딩 테스트' 출제자야. 지원자는 시험 플랫폼 안의 AI와 대화하면서 제한 시간 ${S.minutes}분 안에 동작하는 결과물을 만들어 제출해. 채점은 구현 완성도, AI와의 대화 맥락, AI 결과 검증, 토큰 효율, 보안을 봐.
 직무: ${TRACKS[S.track].name} (${TRACKS[S.track].desc})
 유통·물류·외식·미디어·뷰티 같은 생활 서비스 업종의 가상 회사를 배경으로, 아래 예시와 다른 새 과제 하나를 만들어. ${S.minutes}분 안에 필수 요구사항을 다 할 수 있는 크기로.
@@ -2002,7 +2863,7 @@ AI가 처음 짠 코드에서 흔히 빠지는 함정(경계값, 중복, 시간�
 ${JSON.stringify(exObj)}
 
 다음 JSON 객체 하나만 답해:
-{"title":string,"scenario":string,${api?'"api":string(줄바꿈은 \\n),':''}"must":[4~5개 string],"nice":[2개 string],"deliver":string,"sample":string(입력 예시, 줄바꿈은 \\n),"hidden":[4개 string]${api?',"tests":string(pytest 코드, 줄바꿈은 \\n)':''}}`;
+{"title":string,"scenario":string,${api?'"api":string(줄바꿈은 \\n),':''}${libk?'"spec":string(줄바꿈은 \\n),"starter":string,"libFiles":object,':''}"must":[4~5개 string],"nice":[2개 string],"deliver":string,"sample":string(${libk?"사용 예시":"입력 예시"}, 줄바꿈은 \\n),"hidden":[4개 string]${api||libk?',"tests":string(pytest 코드, 줄바꿈은 \\n)':''}}`;
   try{
     let t;
     try{ t = await sampleFn.json(prompt, { cache:false, modelTier:"complex" }); }
@@ -2013,10 +2874,14 @@ ${JSON.stringify(exObj)}
       t = await sampleFn.json(prompt, { cache:false, modelTier:"default" });
     }
     if(!(t && typeof t.title==="string" && Array.isArray(t.must) && t.must.length && Array.isArray(t.hidden))) throw {code:"invalid_json"};
-    const tests = api && typeof t.tests==="string" && /def test_/.test(t.tests) ? t.tests : "";
-    beginTask({ id:"gen-"+Date.now(), track:S.track, type: tests ? "api" : "data", title:t.title, scenario:String(t.scenario||""),
+    const tests = (api || libk) && typeof t.tests==="string" && /def test_/.test(t.tests) ? t.tests : "";
+    const libFiles = {};
+    if(libk && t.libFiles && typeof t.libFiles==="object") for(const [k,v] of Object.entries(t.libFiles)) if(/^[\w-]+\.py$/.test(k) && k!=="solution.py" && typeof v==="string") libFiles[k]=v;
+    beginTask({ id:"gen-"+Date.now(), track:S.track, type: tests ? (libk ? "lib" : "api") : "data", title:t.title, scenario:String(t.scenario||""),
       api: api && t.api ? String(t.api) : undefined, hiddenCode: tests || undefined, aiTests: !!tests,
-      must:t.must.map(String).slice(0,6), nice:(t.nice||[]).map(String).slice(0,3), deliver:String(t.deliver||"main.py, 테스트, README"),
+      spec: libk && t.spec ? String(t.spec) : undefined, starter: libk && typeof t.starter==="string" ? t.starter : undefined,
+      libFiles: libk && tests ? libFiles : undefined,
+      must:t.must.map(String).slice(0,6), nice:(t.nice||[]).map(String).slice(0,3), deliver:String(t.deliver||(libk?"solution.py, 테스트, README":"main.py, 테스트, README")),
       sample:String(t.sample||""), hidden:t.hidden.map(String).slice(0,5) }, "ai");
   }catch(e){
     btn.disabled=false; st.className="status err"; st.textContent = sampleErr(e, "문제를 만들지 못했어요. 문제은행에서 뽑거나 잠시 뒤 다시 눌러 주세요.");
@@ -2053,12 +2918,12 @@ async function grade(){
   const auto = H && !H.error;
   const testText = !hasHidden(T) ? "" : auto
     ? `[숨은 테스트 결과] ${H.passed}/${H.total} 통과. 실패: ${H.rows.filter(r=>!r.ok).map(r=>r.desc).join(" / ")||"없음"}\n구현 완성도 점수는 이 결과로 따로 계산하니 score는 0으로 두고 comment만 써.`
-    : `[숨은 테스트] 실행하지 못함. 구현 완성도는 API 명세와 코드를 대조해 확신할 수 있는 만큼만 줘.`;
+    : `[숨은 테스트] 실행하지 못함. 구현 완성도는 명세와 코드를 대조해 확신할 수 있는 만큼만 줘.`;
   const prompt = `너는 한국 IT 서비스 기업 신입 채용 '바이브 코딩 테스트'의 엄격하지만 공정한 채점자야. 지원자는 시험 플랫폼 안의 AI와 대화하며 제한 시간 안에 결과물을 만들었어. 결과물뿐 아니라 AI와 나눈 대화 맥락과 토큰 효율도 채점해. 제출물에 없는 것은 했다고 가정하지 마.
 
 [과제] ${T.title}
 상황: ${T.scenario}
-${T.api?`API 명세:\n${T.api}\n`:""}필수: ${T.must.map((m,i)=>`(${i+1}) ${m}`).join(" ")}
+${T.api?`API 명세:\n${T.api}\n`:""}${T.spec?`명세:\n${T.spec}\n`:""}필수: ${T.must.map((m,i)=>`(${i+1}) ${m}`).join(" ")}
 ${hasHidden(T)?"":`숨은 검증 항목(지원자는 몰랐음): ${T.hidden.map((h,i)=>`(${i+1}) ${h}`).join(" ")}`}
 ${testText}
 
@@ -2163,7 +3028,7 @@ function buildReport(rec){
   const L = [];
   L.push(`# ${T.title} · ${R.total}점`, "");
   L.push(`- 날짜: ${when}`);
-  L.push(`- 직무: ${TRACKS[T.track]?.name||""} · 유형: ${T.type==="api"?"API 구현":"데이터·분석형"} · 출처: ${S.source==="ai"?"AI 출제":"문제은행"}`);
+  L.push(`- 직무: ${TRACKS[T.track]?.name||""} · 유형: ${typeName(T)} · 출처: ${S.source==="ai"?"AI 출제":"문제은행"}`);
   L.push(`- 환경: ${R.env==="builtin"?`시험장 방식 · AI 성능 ${LEVELS[S.aiLevel].name}`:"내 도구"} · 채점: ${R.mode==="ai"?"AI 채점":"직접 채점"}`);
   L.push(`- 사용 시간: ${R.minutesUsed}분 / ${S.minutes}분`);
   if(R.env==="builtin") L.push(`- 질문 ${R.prompts}회 · ${R.realTokens?"토큰":"토큰(추정)"} ${R.tokens.toLocaleString()} / 목표 ${tokenTarget().toLocaleString()} · 화면 이탈 ${R.leaves}회`);
@@ -2182,6 +3047,7 @@ function buildReport(rec){
   sec("프롬프트 첨삭", R.promptReview); sec("잘한 점", R.strengths); sec("다음에 고칠 점", R.fixes); sec("면접 꼬리질문", R.questions);
   L.push("## 문제", "", T.scenario, "");
   if(T.api) L.push("### API 명세", "", fence(T.api), "");
+  if(T.spec) L.push("### 명세", "", fence(T.spec), "");
   L.push("### 필수 요구사항", ""); T.must.forEach((m,i)=>L.push(`- [${S.done[i]?"x":" "}] ${m}`)); L.push("");
   L.push("## 최종 코드", "", fence(S.code), "");
   L.push("## README", "", S.readme.trim()||"(없음)", "");
@@ -2243,7 +3109,7 @@ $app.addEventListener("click", e => {
     case "toSubmit": go("submit"); break;
     case "backExam": S.finishedAt=null; S.hiddenRes=null; go("exam"); break;
     case "send": sendChat(); break;
-    case "pasteSpec": { const box=document.getElementById("ask"); if(box && !box.disabled){ box.value = (box.value?box.value+"\n\n":"") + "[API 명세]\n" + S.task.api + "\n\n" + API_RULES; box.focus(); } break; }
+    case "pasteSpec": { const box=document.getElementById("ask"); if(box && !box.disabled){ const T=S.task; box.value = (box.value?box.value+"\n\n":"") + (T.spec ? "[명세]\n" + T.spec + "\n\n" + LIB_RULES : "[API 명세]\n" + T.api + "\n\n" + API_RULES); box.focus(); } break; }
     case "runMain": runCode("run"); break;
     case "runTest": runCode("test"); break;
     case "runStop": killWorker(); appendRun("\n[멈춤]\n"); setRunStatus("멈췄어요. 다음 실행 땐 환경을 다시 불러와요."); setRunBusy(false); break;
