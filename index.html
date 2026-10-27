@@ -595,6 +595,16 @@ details.qmore[open] > summary{margin-bottom:10px;color:var(--ink)}
 .case-n{font-family:var(--f-mono);color:var(--muted);font-size:12px;padding-top:7px;text-align:right}
 .case-row textarea{min-height:56px;height:56px;resize:vertical;font-size:12.5px;padding:6px 8px;background:var(--face)}
 .case-head span{font-size:12px;color:var(--muted)}
+
+/* 아이콘: 선 아이콘 + 옅은 파란 바탕 */
+.ic{display:inline-grid;place-items:center;width:52px;height:52px;border-radius:14px;background:rgba(61,139,253,.12);color:#7fb4ff;border:1px solid rgba(61,139,253,.25)}
+.dicon:hover .ic,.dicon:focus-visible .ic{background:rgba(61,139,253,.2);color:#a9cdff}
+.dicon svg{image-rendering:auto;shape-rendering:geometricPrecision}
+.repicon .ic{width:34px;height:34px;border-radius:9px}
+.repicon .ic svg{width:18px;height:18px}
+.repicon svg{width:auto;height:auto}
+.tb-icon{display:inline-grid!important;place-items:center;width:24px;height:24px;border-radius:7px;border:0;box-shadow:none;background:linear-gradient(135deg,#3d8bfd,#6a5cff)}
+.tb-icon::before{content:"</>";font-family:var(--f-mono);font-size:9.5px;font-weight:700;color:#fff;letter-spacing:-.04em}
 </style>
 </head>
 <body>
@@ -2773,10 +2783,10 @@ function viewHistory(){
 
 /* ───────── 화면: 홈 · 이전 기록 · 보고서 ───────── */
 const ICONS = {
-  new: `<svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true"><rect x="6" y="3" width="17" height="24" fill="#F3F2ED" stroke="#1E1F1C"/><path d="M9 9h11M9 13h11M9 17h7" stroke="#45696C" stroke-width="2"/><path d="M20 26l7-11 3 2-7 11-4 1z" fill="#C9A35A" stroke="#1E1F1C"/></svg>`,
-  history: `<svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true"><rect x="3" y="5" width="26" height="22" fill="#F3F2ED" stroke="#1E1F1C"/><rect x="3" y="5" width="26" height="5" fill="#45696C"/><rect x="7" y="20" width="4" height="4" fill="#8C3B2E"/><rect x="13" y="16" width="4" height="8" fill="#45696C"/><rect x="19" y="13" width="4" height="11" fill="#3D6338"/></svg>`,
-  reports: `<svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true"><path d="M2 8h10l3 3h15v17H2z" fill="#D9C27A" stroke="#1E1F1C"/><rect x="6" y="4" width="14" height="12" fill="#F3F2ED" stroke="#1E1F1C"/><path d="M8 8h10M8 11h8" stroke="#45696C" stroke-width="1.5"/><path d="M2 13h28v15H2z" fill="#E6CF86" stroke="#1E1F1C"/></svg>`,
-  settings: `<svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true"><rect x="4" y="6" width="24" height="17" fill="#BDBEB8" stroke="#1E1F1C"/><rect x="7" y="9" width="18" height="11" fill="#45696C"/><path d="M10 26h12v2H10z" fill="#74756F"/><circle cx="21" cy="14" r="3" fill="#F3F2ED"/><path d="M11 13h6M11 16h4" stroke="#F3F2ED" stroke-width="1.5"/></svg>`,
+  new: `<span class="ic"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="m10 12.5-2 2 2 2M14 12.5l2 2-2 2"/></svg></span>`,
+  history: `<span class="ic"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><rect x="5.5" y="11" width="3" height="6" rx="1"/><rect x="10.5" y="6" width="3" height="11" rx="1"/><rect x="15.5" y="13" width="3" height="4" rx="1"/></svg></span>`,
+  reports: `<span class="ic"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></span>`,
+  settings: `<span class="ic"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg></span>`
 };
 const hasSettings = () => typeof siteSettings === "function";
 const inProgress = () => !!(S.task && S.startedAt && !S.finishedAt);
