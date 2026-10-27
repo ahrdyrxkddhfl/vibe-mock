@@ -582,6 +582,11 @@ details.qmore[open] > summary{margin-bottom:10px;color:var(--ink)}
 .apitable tr.gap td{padding:2px;border-top:0}
 .apitable td.c code{background:none;padding:0;color:#d7dee8;white-space:pre-wrap;word-break:break-word}
 .apitable td.d{color:var(--muted);width:46%}
+
+.runbtns{display:flex;gap:6px;padding-left:8px;margin-left:2px;border-left:1px solid var(--line)}
+.menubar .btn.submit{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;padding:2px 14px}
+.menubar .btn.submit:hover{background:var(--accent-2)}
+@media (max-width:900px){ .runbtns{border-left:0;padding-left:0} }
 </style>
 </head>
 <body>
@@ -2048,8 +2053,8 @@ monthly_report(book, month) -> list
   출석번호 순서로 [{"number", "name", "출석", "지각", "결석", "rate"}]
   rate = (출석 + 지각 × 0.5) / 그 달 기록된 날 수, round(값, 2). 기록된 날이 없으면 0.0`,
   must:["take_attendance: 번호:상태 줄 반영과 상태별 인원","잘못된 줄은 errors에 줄 번호, 나머지는 처리","같은 번호는 마지막 줄 반영, 없는 학생은 결석","monthly_report: 번호순, 그 달 기록만","rate 계산과 기록 없는 달 0.0"],
-  nice:["직접 쓴 테스트 코드 (test_solution.py)","README에 확인한 것·못 한 것"],
-  deliver:"solution.py, 테스트, README",
+  nice:["직접 쓴 테스트 코드 (test_solution.py)","명세 예시를 직접 실행해 확인"],
+  deliver:"solution.py",
   sample:`book = RollBook(["최다은", "김하늘", "박서준"])   # 김하늘 1, 박서준 2, 최다은 3
 take_attendance(book, "2026-10-27", ["1:출석", "2:지각", "9:출석"])
 → {"출석": 1, "지각": 1, "결석": 1, "errors": [3]}
@@ -2082,8 +2087,8 @@ find_adjacent(seat_map, row, n) -> list | None
   그 열에서 번호가 이어진 빈 좌석 n개 중 가장 왼쪽 묶음. 예) ["A7", "A8", "A9"]
   없거나 없는 열이면 None. n < 1이면 ValueError`,
   must:["book_group 성공: 요청 순서대로 돌려주기","실패하면 이번에 잡은 좌석 모두 풀기","EMPTY·DUPLICATE·TAKEN·NO_SUCH_SEAT 사유 구분","find_adjacent: 가장 왼쪽 묶음, 없으면 None","n < 1이면 ValueError"],
-  nice:["직접 쓴 테스트 코드 (test_solution.py)","README에 확인한 것·못 한 것"],
-  deliver:"solution.py, 테스트, README",
+  nice:["직접 쓴 테스트 코드 (test_solution.py)","명세 예시를 직접 실행해 확인"],
+  deliver:"solution.py",
   sample:`m = SeatMap()
 m.hold("A3", "lee")
 book_group(m, "kim", ["A1", "A2", "A3"])
@@ -2106,8 +2111,8 @@ RateLimiter(limit, window)
 
   key(사용자)마다 따로 세요. now는 줄어들지 않는다고 가정해도 돼요.`,
   must:["limit개까지 허용하고 그다음 거절","구간 경계 (now - window, now]를 정확히","거절된 호출은 세지 않기","키별로 따로 세기","remaining, retry_after","잘못된 인자는 ValueError"],
-  nice:["직접 쓴 테스트 코드 (test_solution.py)","README에 자료구조를 고른 이유"],
-  deliver:"solution.py, 테스트, README",
+  nice:["직접 쓴 테스트 코드 (test_solution.py)","명세 예시를 직접 실행해 확인"],
+  deliver:"solution.py",
   sample:`r = RateLimiter(2, 10)
 r.allow("u1", 0)        → True
 r.allow("u1", 5)        → True
@@ -2135,8 +2140,8 @@ clean(lines) -> (rows, rejects)
 daily(rows) -> {(매장, "YYYY-MM-DD"): {"count": 건수, "sum": 금액 합}}
   날짜는 한국 시각(UTC+9) 기준`,
   must:["clean: 정상 줄 파싱 (금액 int, 시각 datetime)","거절 사유 5가지와 검사 순서","DUP은 rows에 들어간 거래ID만 기준","빈 줄·공백 처리와 줄 번호","daily: 한국 날짜 기준 매장별 집계"],
-  nice:["직접 쓴 테스트 코드 (test_solution.py)","README에 거절 기준 정리"],
-  deliver:"solution.py, 테스트, README",
+  nice:["직접 쓴 테스트 코드 (test_solution.py)","명세 예시를 직접 실행해 확인"],
+  deliver:"solution.py",
   sample:`lines = [
   "2026-10-20T14:30:00Z|GN01|T1|12000|CARD",
   "2026-10-20T16:10:00Z|GN01|T2|8000|CASH",
@@ -2167,8 +2172,8 @@ load_increment(table, ckpt, events, job="inventory") -> dict
   5. 끝나면 ckpt.write(job, 이번에 본 가장 큰 seq). invalid였던 이벤트도 포함. 새 이벤트가 없으면 그대로
   반환: {"loaded", "stale", "invalid", "skipped_old", "checkpoint"}`,
   must:["체크포인트 이하 seq 건너뛰기","seq 오름차순으로 처리","잘못된 이벤트 거르기 (invalid)","updated_at을 실제 시각으로 비교해 늦은 값만 쓰기","같은 묶음을 다시 넣어도 쓰기 없음 (멱등)","체크포인트 갱신 (invalid 포함)"],
-  nice:["직접 쓴 테스트 코드 (test_solution.py)","README에 멱등성을 지킨 방법"],
-  deliver:"solution.py, 테스트, README",
+  nice:["직접 쓴 테스트 코드 (test_solution.py)","명세 예시를 직접 실행해 확인"],
+  deliver:"solution.py",
   sample:`t, c = Table(), CheckpointStore()
 load_increment(t, c, [
   {"seq": 2, "sku": "S1", "qty": 7, "updated_at": "2026-10-20T10:00:00Z"},
@@ -2201,8 +2206,8 @@ batch(client, prompts, budget) -> {"results": [ask 결과...], "used": 쓴 토�
     부르지 않고 {"ok": False, "error": "BUDGET", "attempts": 0}. 다음 프롬프트는 계속 시도
   - used에는 성공한 호출의 tokens만 더해요`,
   must:["ask 성공 결과 모양","RateLimitError 재시도와 두 배씩 늘어나는 대기","재시도 횟수 한도 (max_retries)","BadRequestError는 바로 실패","빈 프롬프트는 호출 안 함","batch: 예산 확인 후 건너뛰고 계속"],
-  nice:["직접 쓴 테스트 코드 (test_solution.py)","README에 재시도 정책 설명"],
-  deliver:"solution.py, 테스트, README",
+  nice:["직접 쓴 테스트 코드 (test_solution.py)","명세 예시를 직접 실행해 확인"],
+  deliver:"solution.py",
   sample:`from fake_llm import FakeLLM, RateLimitError
 c = FakeLLM([RateLimitError, "ok"])
 ask(c, "배송 지연 문의 요약")
@@ -2225,8 +2230,8 @@ chunk(text, max_chars, overlap) -> list[str]
   마지막 조각이 앞 조각에 다 들어 있으면 만들지 않아요. 빈 문자열 → []
   max_chars <= 0, overlap < 0, overlap >= max_chars → ValueError`,
   must:["휴대폰 세 가지 모양 마스킹","긴 숫자 안의 010은 그대로 두기","이메일 마스킹","주민번호 모양 마스킹","chunk 겹쳐 자르기","잘못된 인자는 ValueError"],
-  nice:["직접 쓴 테스트 코드 (test_solution.py)","README에 못 잡는 경우 적기"],
-  deliver:"solution.py, 테스트, README",
+  nice:["직접 쓴 테스트 코드 (test_solution.py)","명세 예시를 직접 실행해 확인"],
+  deliver:"solution.py",
   sample:`mask("연락처 01012345678, 메일 kim.cj@olive.co.kr")
 → "연락처 010-****-5678, 메일 k***@olive.co.kr"
 chunk("abcdefghijk", 4, 1) → ["abcd", "defg", "ghij", "jk"]`,
@@ -2254,8 +2259,8 @@ GET  /parcels/delayed?now=시각
 등록 직후 상태는 접수, history는 빈 목록
 시각은 ISO 8601. +09:00과 Z(UTC)가 섞여 들어와요.`,
   must:["송장 등록 (중복 409)","상태 이벤트 추가: 다음 단계만 허용","같은 이벤트 재전송은 200, 이력 그대로","송장 조회 (없으면 404)","지연 목록 (시간대 섞임 처리)"],
-  nice:["직접 쓴 테스트 코드","README에 설계 이유"],
-  deliver:"main.py(FastAPI app), 테스트, README",
+  nice:["직접 쓴 테스트 코드","명세 예시를 직접 실행해 확인"],
+  deliver:"main.py(FastAPI app), 테스트",
   sample:'POST /parcels\n{"tracking_no":"6021-1123-0045","receiver":"김OO","dest":"서울 용산구"}\n\nPOST /parcels/6021-1123-0045/events\n{"status":"집화","at":"2026-10-21T09:12:00+09:00"}',
   hidden:["순서를 건너뛰거나 거꾸로 가는 이벤트를 거부하는가","같은 이벤트 재전송이 이력을 늘리지 않는가","UTC와 한국 시각이 섞여도 24시간 계산이 맞는가","/parcels/delayed가 /parcels/{no}에 가로채이지 않는가"] },
 { id:"sw-seat", track:"sw", type:"api", title:"영화관 좌석 예매 API",
@@ -2277,8 +2282,8 @@ DELETE /bookings/{booking_id}
 
 좌석 이름은 열 글자(A~J) + 번호(1~12). 예: A1, J12`,
   must:["회차 만들기와 좌석 조회","여러 좌석 한 번에 예매: 전부 되거나 전부 실패","예매 취소 후 다시 예매 가능","잘못된 좌석·빈 목록·중복 거부","없는 회차·예매는 404"],
-  nice:["직접 쓴 테스트 코드","README에 동시성 처리 설명"],
-  deliver:"main.py(FastAPI app), 테스트, README",
+  nice:["직접 쓴 테스트 코드","명세 예시를 직접 실행해 확인"],
+  deliver:"main.py(FastAPI app), 테스트",
   sample:'POST /shows/1/bookings\n{"seats":["E7","E8"],"user":"u123"}\n\nDELETE /bookings/{booking_id}',
   hidden:["4좌석 중 1좌석이 찼으면 나머지도 안 잡히는가","K열·0번·13번을 거부하는가","같은 좌석을 두 번 넣은 요청을 거부하는가","회차가 다르면 같은 좌석을 따로 예매할 수 있는가"] },
 { id:"sw-coupon", track:"sw", type:"api", title:"선착순 쿠폰 발급 API",
@@ -2307,8 +2312,8 @@ GET  /users/{user}/coupons
 오류 본문에는 code를 넣어요. {"code":...} 또는 FastAPI 기본 모양 {"detail":{"code":...}} 둘 다 돼요.
 시각은 ISO 8601. +09:00과 Z(UTC)가 섞여 들어와요.`,
   must:["행사 만들기와 조회","발급: 수량 소진·1인 1매 처리","사용 처리: 만료·중복 사용 처리","내 쿠폰 목록","오류마다 맞는 code"],
-  nice:["직접 쓴 테스트 코드","README에 중복 방지 방식"],
-  deliver:"main.py(FastAPI app), 테스트, README",
+  nice:["직접 쓴 테스트 코드","명세 예시를 직접 실행해 확인"],
+  deliver:"main.py(FastAPI app), 테스트",
   sample:'POST /campaigns\n{"name":"가을 15%","total":1000,"expires_at":"2026-10-31T23:59:59+09:00"}\n\nPOST /campaigns/1/issue   {"user":"u123"}\nPOST /coupons/7/use       {"now":"2026-10-25T12:00:00+09:00"}',
   hidden:["실패한 발급이 남은 수량을 줄이지 않는가","같은 사람의 두 번째 발급을 막는가","UTC 시각으로 온 사용 요청의 만료를 맞게 판단하는가","사용 처리를 두 번 보내면 두 번째가 실패하는가"] },
 { id:"de-orders", track:"de", type:"api", title:"주문 로그 정제·매출 API",
@@ -2330,8 +2335,8 @@ GET  /quarantine
 - 날짜는 한국 시각 기준. ordered_at에 +09:00과 Z(UTC)가 섞여 있어요.
 - 같은 파일을 다시 올려도 매출이 늘면 안 돼요.`,
   must:["CSV 업로드와 처리 리포트","order_id 중복 제거","금액 이상 행 격리","한국 시각 기준 날짜별·카테고리별 매출","재업로드해도 결과가 같음"],
-  nice:["pandas나 sqlite3 사용","README에 정제 규칙"],
-  deliver:"main.py(FastAPI app), 테스트, README",
+  nice:["pandas나 sqlite3 사용","명세 예시를 직접 실행해 확인"],
+  deliver:"main.py(FastAPI app), 테스트",
   sample:"order_id,ordered_at,category,amount\nA1001,2026-10-20T23:40:00+09:00,뷰티,18900\nA1001,2026-10-20T23:40:00+09:00,뷰티,18900\nA1002,2026-10-20T15:05:00Z,식품,12000\nA1003,2026-10-21T00:10:00+09:00,뷰티,-5000",
   hidden:["UTC 시각을 한국 날짜로 바꿔 집계하는가","건수 합이 입력 건수와 맞는가","재업로드가 매출·격리를 늘리지 않는가","주문 없는 날에 빈 목록을 주는가"] },
 { id:"de-inventory", track:"de", type:"api", title:"매장 재고 증분 적재 API",
@@ -2352,15 +2357,15 @@ GET  /inventory/{store_id}/{sku}
 - read = inserted + updated + unchanged + stale + quarantined
 - 한 파일 안에서도 위에서부터 차례로 적용해요.`,
   must:["스냅샷 업로드와 적재 리포트","(store_id, sku) 기준 upsert","오래된 스냅샷은 덮어쓰지 않음","스키마 검사: 열이 빠지면 전체 거부","잘못된 수량 격리"],
-  nice:["sqlite3로 저장","README에 적재 규칙"],
-  deliver:"main.py(FastAPI app), 테스트, README",
+  nice:["sqlite3로 저장","명세 예시를 직접 실행해 확인"],
+  deliver:"main.py(FastAPI app), 테스트",
   sample:"store_id,sku,qty,snapshot_date\nS001,8801234,12,2026-10-20\nS001,8805678,-3,2026-10-20\nS002,8801234,7,2026-10-20",
   hidden:["같은 파일을 두 번 넣어도 값이 그대로인가","열 순서만 다른 파일을 받아 주는가","오래된 날짜가 최신 값을 덮어쓰지 않는가","건수 합이 읽은 건수와 맞는가"] },
 { id:"de-scan", track:"de", type:"data", title:"물류센터 시간대별 처리량",
   scenario:"물류센터 스캐너가 상자마다 입고·분류·출고 스캔을 남겨요. 시간대별 처리량과 오래 머무는 상자를 찾아요.",
   must:["이벤트(box_id, stage, scanned_at) 읽기","1시간 단위, 단계별 처리 상자 수","상자별 입고 → 출고 체류 시간, 상위 10개","같은 상자의 같은 단계 중복 스캔은 한 번만 셈","결과를 CSV나 표로 출력"],
   nice:["늦게 도착한 이벤트가 오면 해당 시간대만 다시 계산","간단한 차트"],
-  deliver:"README(실행 방법·집계 규칙), 코드, 결과",
+  deliver:"코드, 결과",
   sample:"box_id,stage,scanned_at\nB001,입고,2026-10-21T10:58:12+09:00\nB001,입고,2026-10-21T10:58:15+09:00\nB001,분류,2026-10-21T10:59:59+09:00\nB001,출고,2026-10-21T11:00:00+09:00",
   hidden:["중복 스캔이 처리량을 부풀리지 않는가","10:59:59와 11:00:00이 다른 시간대로 나뉘는가","출고 스캔이 없는 상자를 체류 시간에서 어떻게 다뤘는지 밝혔는가","출고가 입고보다 이른 이상한 데이터를 잡아내는가"] },
 { id:"ai-cs", track:"ai", type:"api", title:"고객 문의 분류 API",
@@ -2382,22 +2387,22 @@ masked: 전화번호는 [전화번호], 이메일은 [이메일]로 바꾼 원�
 reason: 왜 그렇게 분류했는지 한 줄
 나중에 LLM으로 바꿀 수 있게 분류 함수를 따로 두세요.`,
   must:["카테고리 분류","긴급도 판정","전화번호·이메일 가리기","빈 문의 거부","여러 건 한 번에 처리"],
-  nice:["샘플 20건으로 정확도 측정","README에 규칙과 한계"],
-  deliver:"main.py(FastAPI app), 테스트, README",
+  nice:["샘플 20건으로 정확도 측정","명세 예시를 직접 실행해 확인"],
+  deliver:"main.py(FastAPI app), 테스트",
   sample:'POST /inquiries/classify\n{"text":"어제 주문한 거 아직도 안 왔어요. 010-1234-5678로 연락 주세요"}\n\n→ {"category":"배송","urgency":"보통","masked":"... [전화번호]로 연락 주세요","reason":"..."}',
   hidden:["하이픈 없는 전화번호도 가리는가","지시를 바꾸려는 문의에도 허용 값만 내는가","어디에도 안 맞는 문의를 기타로 두는가","공백뿐인 문의를 거부하는가"] },
 { id:"ai-review", track:"ai", type:"data", title:"리뷰 감성 분류 모델",
   scenario:"상품 리뷰(긍정·부정 라벨)가 있어요. 분류 모델을 학습하고, 라벨 없는 리뷰의 예측값을 만들어요. 데이터는 AI에게 샘플을 만들어 달라고 해서 시작해요.",
   must:["학습·검증 데이터 분리","기준선 모델 (예: TF-IDF + 로지스틱 회귀)","검증 지표 보고: 정확도와 F1","예측 결과 (id, label)","전처리 과정 설명"],
   nice:["기준선보다 나은 모델 하나 더 비교","틀린 예시 분석"],
-  deliver:"README(실행 방법·지표), 코드, 예측 결과",
+  deliver:"코드, 예측 결과",
   sample:"id,review,label\n1,배송 빠르고 발림성 좋아요,1\n2,하루 만에 끈이 끊어졌어요,0\n3,가격 대비 그냥 그래요,0",
   hidden:["벡터라이저를 학습 데이터에만 fit 했는가 (검증 데이터 누수)","라벨 비율이 치우쳤을 때 정확도만 보지 않았는가","예측 결과의 행 수와 id가 입력과 같은가","seed를 고정해 다시 돌려도 같은 결과인가"] },
 { id:"ai-rag", track:"ai", type:"data", title:"사내 규정 Q&A 검색",
   scenario:"사내 규정 문서 몇 개(휴가, 출장비, 보안 등)를 바탕으로 질문에 근거와 함께 답하는 검색기를 만들어요.",
   must:["문서를 조각으로 나눠 검색","답변에 근거 문서와 구절 표시","근거가 없으면 모른다고 답함","간단한 함수나 CLI","문서를 추가하면 다시 색인"],
   nice:["질문 10개로 정답률 측정","검색 결과 순위를 볼 수 있는 로그"],
-  deliver:"README(실행 방법·검색 방식), 코드, 질문·답변 예시",
+  deliver:"코드, 질문·답변 예시",
   sample:"docs/휴가규정.md, docs/출장비.md ...\n질문: 해외 출장 일비는 하루 얼마예요?\n답: ... (근거: 출장비.md 3조 2항)",
   hidden:["문서에 없는 질문에 지어내지 않는가","답에 붙인 근거 구절이 실제 문서에 있는가","옛 규정과 새 규정이 충돌할 때 날짜를 보는가","문서를 고친 뒤에도 옛 내용으로 답하지 않는가"] },
 ];
@@ -2444,7 +2449,7 @@ const PHASES = [
   { name:"요구사항 쪼개기", until:.10, hint:"필수 항목을 기능 단위로 나누고 입출력·예외를 먼저 적어요. AI에는 이 목록과 조건을 함께 줘요." },
   { name:"핵심 구현",       until:.60, hint:"필수 요구사항이 끝까지 도는 최소 버전부터. 한 번에 다 시키지 말고 기능 하나씩." },
   { name:"검증",            until:.85, hint:"반례를 직접 만들어 돌려요. 수정 요청엔 기대 동작, 실제 결과, 실패한 입력을 같이 적어요." },
-  { name:"정리·제출",       until:1.0, hint:"README에 실행 방법과 설계 이유를 쓰고, 못 한 것은 못 했다고 적어요." },
+  { name:"정리·제출",       until:1.0, hint:"테스트를 한 번 더 돌리고, 코드 표시 줄(```)·함수 이름·파일 이름을 확인한 뒤 제출해요." },
 ];
 
 /* ───────── 상태 ───────── */
@@ -2931,14 +2936,10 @@ function paneCode(){
   <div class="hgutter" id="hgutter" title="끌어서 높이 조절 · 두 번 누르면 원래대로"></div>
   <div class="console">
     <div class="console-bar">
-      <div class="ctabs" role="tablist"><button class="ctab" data-ctab="run" aria-selected="${ct==="run"}">실행 결과</button><button class="ctab" data-ctab="readme" aria-selected="${ct==="readme"}">README</button></div>
-      <span class="actions"><button class="btn ghost sm" id="runStop" ${runBusy?"":"hidden"}>멈추기</button><button class="btn ghost sm" id="runTest" ${runBusy?"disabled":""}>테스트</button><button class="btn sm" id="runMain" ${runBusy?"disabled":""}>▶ 실행</button></span>
+      <div class="ctabs" role="tablist"><button class="ctab" data-ctab="run" aria-selected="true">실행 결과</button></div>
     </div>
-    <div class="console-body" ${ct==="run"?"":"hidden"} data-cpane="run">
-      <textarea id="run" spellcheck="false" placeholder="▶ 실행은 main.py(없으면 solution.py)를 그냥 실행, 테스트는 test_로 시작하는 파일을 pytest로 돌려요. 브라우저 안 파이썬 3.13 · fastapi·pandas·numpy·sqlite3·scikit-learn·pytest 사용 가능 · 처음 실행 때 10~40MB를 받아요.">${esc(S.run)}</textarea>
-    </div>
-    <div class="console-body" ${ct==="readme"?"":"hidden"} data-cpane="readme">
-      <textarea id="readme" spellcheck="false" style="font-family:var(--f-body)" placeholder="## 실행 방법&#10;## 설계&#10;## AI 활용 (맡긴 것 / 직접 판단한 것)&#10;## 못 한 것">${esc(S.readme)}</textarea>
+    <div class="console-body" data-cpane="run">
+      <textarea id="run" spellcheck="false" placeholder="오른쪽 위 ▶ 실행은 main.py(없으면 solution.py)를 그냥 실행, 테스트는 test_로 시작하는 파일을 pytest로 돌려요. 브라우저 안 파이썬 3.13 · fastapi·pandas·numpy·sqlite3·scikit-learn·pytest 사용 가능 · 처음 실행 때 10~40MB를 받아요.">${esc(S.run)}</textarea>
     </div>
     <div class="console-status" id="runStatus">${esc(runStatusText)}</div>
   </div>`;
@@ -2998,7 +2999,9 @@ function viewExam(){
     <span class="grow"></span>
     <button class="btn ghost sm" id="quitExam">나가기</button>
     <span class="timer" id="clock">${fmt(limitMs()-elapsed())}</span>
-    ${started ? `<button class="btn ghost sm" id="pause">${S.pausedAt?"계속":"일시정지"}</button><button class="btn sm" id="toSubmit">제출(S)</button>` : ""}
+    ${started ? `<button class="btn ghost sm" id="pause">${S.pausedAt?"계속":"일시정지"}</button>
+      <span class="runbtns"><button class="btn ghost sm" id="runStop" ${runBusy?"":"hidden"}>■ 멈추기</button><button class="btn ghost sm run" id="runMain" ${runBusy?"disabled":""} title="main.py(없으면 solution.py)를 실행">▶ 실행</button><button class="btn ghost sm run" id="runTest" ${runBusy?"disabled":""} title="test_로 시작하는 파일을 pytest로 실행">테스트</button></span>
+      <button class="btn sm submit" id="toSubmit">제출(S)</button>` : ""}
   </div>
   <nav class="mtabs" role="tablist">${[["q","문제"],["code","코드"],["ai",builtin()?"AI":"기록"],["run","실행"]].map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${tab===k}">${l}</button>`).join("")}</nav>
   <div class="ide-main" id="ideMain" style="--w1:${L.w1||30}%;--w3:${L.w3||30}%">
@@ -3175,7 +3178,7 @@ function runCode(cmd){
   let entry = "main.py";
   if(cmd==="run" && !files["main.py"] && files["solution.py"]) entry = "solution.py";
   else if(cmd==="run" && !files["main.py"]){ entry = names.find(n=>n.endsWith(".py") && !/(^|\/)test_|_test\.py$/.test(n)); if(!entry){ setRunStatus("실행할 .py 파일이 없어요.", true); return; } }
-  if(cmd==="test" && !names.some(n=>/(^|\/)test_[^\/]*\.py$|_test\.py$/.test(n))){ setRunStatus("test_로 시작하는 파일이 없어요. # --- test_main.py --- 로 테스트 파일을 만들어 주세요.", true); return; }
+  if(cmd==="test" && !names.some(n=>/(^|\/)test_[^\/]*\.py$|_test\.py$/.test(n))){ setRunStatus("test_로 시작하는 파일이 없어요. 파일 탭 옆 +를 눌러 test_solution.py 같은 테스트 파일을 만들어 주세요.", true); return; }
   S.runs++;
   appendRun(`${S.run.trim()?"\n":""}$ ${cmd==="test"?"pytest -q":"python "+entry}   (${new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})})\n`);
   setRunBusy(true); setRunStatus("준비 중이에요.");
@@ -3202,7 +3205,6 @@ function viewSubmit(){
   const doneN = S.task.must.filter((_,i)=>S.done[i]).length;
   const warn = [];
   if(!S.code.trim()) warn.push("답안 코드가 비어 있어요.");
-  if(!S.readme.trim()) warn.push("README가 비어 있어요.");
   const api = hasHidden(S.task);
   if(!api && !S.run.trim()) warn.push("실행·테스트 결과가 없어요. 구현 완성도를 코드만 보고 판단해요.");
   if(api && !/app\s*=\s*FastAPI\s*\(/.test(S.code)) warn.push("main.py에 app = FastAPI() 가 안 보여요. 숨은 테스트는 main.app을 불러와요.");
@@ -3496,7 +3498,7 @@ ${JSON.stringify(exObj)}
       api: api && t.api ? String(t.api) : undefined, hiddenCode: tests || undefined, aiTests: !!tests,
       spec: libk && t.spec ? String(t.spec) : undefined, starter: libk && typeof t.starter==="string" ? t.starter : undefined,
       libFiles: libk && tests ? libFiles : undefined,
-      must:t.must.map(String).slice(0,6), nice:(t.nice||[]).map(String).slice(0,3), deliver:String(t.deliver||(libk?"solution.py, 테스트, README":"main.py, 테스트, README")),
+      must:t.must.map(String).slice(0,6), nice:(t.nice||[]).map(String).slice(0,3), deliver:String(t.deliver||(libk?"solution.py":"main.py, 테스트")).replace(/,?\s*README(\([^)]*\))?/g,"").replace(/^,\s*/,""),
       sample:String(t.sample||""), hidden:t.hidden.map(String).slice(0,5) }, "ai");
   }catch(e){
     btn.disabled=false; st.className="status err"; st.textContent = sampleErr(e, "문제를 만들지 못했어요. 문제은행에서 뽑거나 잠시 뒤 다시 눌러 주세요.");
@@ -3524,7 +3526,7 @@ async function ensureHidden(st){
 }
 async function grade(){
   const st=document.getElementById("gradeStatus"), stream=document.getElementById("stream"), stop=document.getElementById("stopGrade"), btn=document.getElementById("grade"), selfBtn=document.getElementById("selfGrade");
-  if(!(S.code.trim()||S.readme.trim())){ st.className="status err"; st.textContent="채점할 내용이 없어요. 시험으로 돌아가 코드나 README를 채워 주세요."; return; }
+  if(!(S.code.trim()||S.readme.trim())){ st.className="status err"; st.textContent="채점할 내용이 없어요. 시험으로 돌아가 코드를 채워 주세요."; return; }
   if(!S.finishedAt) S.finishedAt = Date.now();
   btn.disabled=true; if(selfBtn) selfBtn.disabled=true;
   const H = await ensureHidden(st);
@@ -3552,10 +3554,7 @@ ${CRITERIA.map(c=>`- ${c.name} (${c.max}점): ${c.desc}`).join("\n")}
 
 ${cut(transcript(),30000)}
 
-[README]
-${cut(S.readme.trim()||"(없음)",12000)}
-
-[답안 코드]
+${S.readme.trim() ? `[README]\n${cut(S.readme.trim(),12000)}\n\n` : ""}[답안 코드]
 ${cut(S.code.trim()||"(없음)",50000)}
 
 [실행·테스트 결과]
@@ -3666,7 +3665,7 @@ function buildReport(rec){
   if(T.spec) L.push("### 명세", "", fence(T.spec), "");
   L.push("### 필수 요구사항", ""); T.must.forEach((m,i)=>L.push(`- [${S.done[i]?"x":" "}] ${m}`)); L.push("");
   L.push("## 최종 코드", "", fence(S.code), "");
-  L.push("## README", "", S.readme.trim()||"(없음)", "");
+  if(S.readme.trim()) L.push("## README", "", S.readme.trim(), "");
   L.push("## 실행·테스트 결과", "", fence(S.run), "");
   if(R.env==="builtin"){
     L.push("## AI 대화 기록", "");
