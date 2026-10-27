@@ -2630,6 +2630,9 @@ const LEVELS = {
   mid:  { name:"중", tier:"default", desc:"보통 모델. 기본값이에요." },
   low:  { name:"하", tier:"quick",   desc:"작고 빠른 모델 + 일부러 예외 처리를 자주 빠뜨리고 가끔 실수해요." },
 };
+// 사전점검: 시험장 AI는 Claude Sonnet 4.6으로 고정해서 연습 (사이트 버전). 아티팩트는 모델을 고를 수 없어 기본 모델
+const examLevel = () => (typeof MODELS !== "undefined" && MODELS.exam) ? "real" : "mid";
+const modelLabel = () => S.aiLevel === "real" ? "Claude Sonnet 4.6" : "Claude";
 const LOW_AI_RULES = `\n[성능 낮은 AI 흉내] 이번 응시자는 성능이 낮은 AI 대비 연습 중이야. 답은 짧게. 경계값·중복·잘못된 입력 처리와 테스트는 응시자가 콕 집어 요청할 때만 넣어. 막연한 요청에는 그럴듯하지만 일부 조건을 빠뜨린 코드를 줘도 돼. 가끔 사소한 실수(정렬 기준, 시간대, off-by-one 등)를 섞되 먼저 말하지 마. 응시자가 실패한 입력과 기대 결과를 구체적으로 주면 그때는 정확히 고쳐 줘.`;
 
 const PHASES = [
@@ -2736,10 +2739,6 @@ function viewSetup(){
       <button class="choice" data-limit="exam" aria-pressed="${S.limit==="exam"}"><b>실전 규칙</b><small>문제당 보내는 글 ${SEND_LIMIT}토큰 · 질문 ${Q_LIMIT}번 (사전점검에서 확인한 조건)</small></button>
       <button class="choice" data-limit="free" aria-pressed="${S.limit!=="exam"}"><b>제한 없음</b><small>예전 연습 방식. 앞 대화까지 합친 토큰을 봐요</small></button>
     </div></section>`:""}
-  ${builtin()?`<section class="section"><h2>시험장 AI 성능</h2>
-    <div class="choices">${Object.entries(LEVELS).filter(([k,l])=>!l.siteOnly || (typeof MODELS!=="undefined" && MODELS[l.tier])).map(([k,l])=>`<button class="choice" data-level="${k}" aria-pressed="${S.aiLevel===k}"><b>${l.name}</b><small>${esc(l.desc)}</small></button>`).join("")}</div>
-    <p class="muted small">실제 시험 AI가 생각보다 약할 수 있어요. '하'로 연습하면 AI 답을 의심하고 반례로 고쳐 쓰는 습관이 붙어요.</p>
-  </section>`:""}
   <section class="section"><h2>문제</h2>
     <div class="actions">
       <button class="btn" id="startBank">문제은행에서 뽑기 <span style="opacity:.7">(${count}문제)</span></button>
@@ -2763,7 +2762,7 @@ const PAGE_TITLES = { "제출":"제출 확인", "결과":"채점 결과", "직�
 function mast(extra){
   const t = TRACKS[S.track];
   return `<div class="qhead"><h1 class="page-title">${extra ? esc(PAGE_TITLES[extra]||extra) : "새 모의고사"}</h1></div>
-  <div class="ticket"><span>직무 ${esc(t.name)}</span><span>${S.minutes}분</span><span>${builtin()?`시험장 방식 · AI ${LEVELS[S.aiLevel].name}`:"내 도구"}</span></div>`;
+  <div class="ticket"><span>직무 ${esc(t.name)}</span><span>${S.minutes}분</span><span>${builtin()?`시험장 방식 · ${modelLabel()}`:"내 도구"}</span></div>`;
 }
 const TB_BTNS = `<span class="tb-btns" aria-hidden="true"><span>_</span><span>□</span><span>×</span></span>`;
 function topbar(){ return `<header class="topbar"><span class="tb-icon" aria-hidden="true"></span><span class="brand">바이브코딩 모의고사</span><span class="grow"></span>${TB_BTNS}</header>`; }
@@ -3194,7 +3193,7 @@ function viewExam(){
   const tab = S.tab || "q";
   const overlay = !started ? `<div class="overlay"><div class="card">
       <h2>시험 안내</h2>
-      <p class="small muted">${esc(S.task.title)} · ${S.minutes}분 · ${builtin()?`시험장 AI(성능 ${LEVELS[S.aiLevel].name})`:"내 도구"}</p>
+      <p class="small muted">${esc(S.task.title)} · ${S.minutes}분 · ${builtin()?`시험장 AI(${modelLabel()})`:"내 도구"}</p>
       <ul class="rules">
         ${builtin()?`<li>AI는 오른쪽 채팅만 써요. 질문·답변·토큰이 모두 기록돼 채점에 들어가요.</li><li>AI는 문제지를 못 봐요. 필요한 명세는 직접 알려 줘야 해요.</li><li>다른 창이나 앱으로 나가면 '화면 이탈'로 기록돼요.</li>`:`<li>평소 쓰는 AI 도구로 풀고, 시킨 일을 오른쪽 '프롬프트 기록'에 남겨요.</li>`}
         <li>코드는 가운데 에디터에 쓰고 ▶ 실행·테스트로 확인해요. 파일은 + 로 추가해요.</li>
@@ -3219,7 +3218,7 @@ function viewExam(){
     <div class="gutter" data-gutter="1" title="끌어서 너비 조절 · 두 번 누르면 원래대로"></div>
     <section class="pane p-code" style="--hc:${L.hc||34}%" ${tab==="code"||tab==="run"?"":"data-m-hidden"} data-mt="${tab==="run"?"run":"code"}">${paneCode()}</section>
     <div class="gutter" data-gutter="3" title="끌어서 너비 조절 · 두 번 누르면 원래대로"></div>
-    <section class="pane p-ai" ${tab==="ai"?"":"data-m-hidden"}><div class="pane-head">${builtin()?`시험장 AI · 성능 ${LEVELS[S.aiLevel].name}`:"프롬프트 기록"}</div>${paneChat()}</section>
+    <section class="pane p-ai" ${tab==="ai"?"":"data-m-hidden"}><div class="pane-head">${builtin()?`시험장 AI · ${modelLabel()}`:"프롬프트 기록"}</div>${paneChat()}</section>
   </div>
   <footer class="statusbar">
     <span class="phase-now" id="phaseNow"></span>
@@ -3596,6 +3595,7 @@ function pickTask(){
 }
 function beginTask(task, source){
   if(!sampleFn) S.env="own";
+  S.aiLevel = examLevel();
   Object.assign(S, { task, source, startedAt:null, pausedAt:null, pausedMs:0, finishedAt:null, tab:"q",
     done:{}, chat:[], usage:{calls:0,inChars:0,outChars:0}, leaves:0, runs:0, hiddenRes:null, log:"", code:"", codePrev:null, run:"", readme:"",
     files:null, active:0, ctab:"run", addingFile:false, userCases:[],
@@ -3625,6 +3625,7 @@ function updateSendMeter(){
 }
 async function sendChat(){
   if(chatBusy) return;
+  S.aiLevel = examLevel();   // 풀던 기록이 예전 성능 설정이어도 지금은 시험장 모델로
   const box=document.getElementById("ask"), st=document.getElementById("chatStatus");
   const q = box.value.trim(); if(!q) return;
   if(limited()){
@@ -3797,7 +3798,7 @@ ${hasHidden(T)?"":`숨은 검증 항목(지원자는 몰랐음): ${T.hidden.map(
 ${testText}
 
 [응시 정보]
-제한 ${S.minutes}분 중 ${used}분 사용. 환경: ${env==="builtin"?`시험장 내장 AI(성능 ${LEVELS[S.aiLevel].name}${S.aiLevel==="low"?": 일부러 예외 처리를 빠뜨리고 가끔 실수하도록 설정된 약한 AI. AI 실수를 잡아낸 과정은 검증 점수에서 높게 쳐 줘":""}). 이 AI는 문제지를 못 보고 응시자가 알려 준 것만 알아. ${limited() ? `실전 규칙(문제당 보내는 글 ${SEND_LIMIT}토큰, 질문 ${Q_LIMIT}번, AI 답 길이는 안 셈). 질문 ${prompts()}/${Q_LIMIT}회, 보낸 토큰 약 ${sentTok()}/${SEND_LIMIT}. 토큰 효율은 이 기준으로 봐: 적은 질문과 압축된 글로 필요한 정보를 전했는지, AI가 되묻게 만들어 질문을 낭비하지 않았는지, 한도 안에서 남겨 둔 여유가 있는지` : `질문 ${prompts()}회, 추정 토큰 ${tokens()} (연습용 목표 ${tokenTarget()})`}, 화면 이탈 ${S.leaves}회`:"응시자 자기 도구(기록은 응시자가 직접 적음)"}. 화면 안 파이썬 실행 ${S.runs}회.${(S.userCases||[]).filter(c=>c.expr.trim()).length ? `\n응시자가 직접 추가한 테스트 케이스(반례) ${(S.userCases||[]).filter(c=>c.expr.trim()).length}개: ${(S.userCases||[]).filter(c=>c.expr.trim()).map(c=>`${c.expr.trim().replace(/\n/g," ; ")} → ${c.want.trim()}`).join(" / ").slice(0,1500)}` : (S.task&&S.task.type==="lib" ? "\n응시자가 직접 추가한 테스트 케이스는 없음." : "")}
+제한 ${S.minutes}분 중 ${used}분 사용. 환경: ${env==="builtin"?`시험장 내장 AI(${modelLabel()}${S.aiLevel==="low"?": 일부러 예외 처리를 빠뜨리고 가끔 실수하도록 설정된 약한 AI. AI 실수를 잡아낸 과정은 검증 점수에서 높게 쳐 줘":""}). 이 AI는 문제지를 못 보고 응시자가 알려 준 것만 알아. ${limited() ? `실전 규칙(문제당 보내는 글 ${SEND_LIMIT}토큰, 질문 ${Q_LIMIT}번, AI 답 길이는 안 셈). 질문 ${prompts()}/${Q_LIMIT}회, 보낸 토큰 약 ${sentTok()}/${SEND_LIMIT}. 토큰 효율은 이 기준으로 봐: 적은 질문과 압축된 글로 필요한 정보를 전했는지, AI가 되묻게 만들어 질문을 낭비하지 않았는지, 한도 안에서 남겨 둔 여유가 있는지` : `질문 ${prompts()}회, 추정 토큰 ${tokens()} (연습용 목표 ${tokenTarget()})`}, 화면 이탈 ${S.leaves}회`:"응시자 자기 도구(기록은 응시자가 직접 적음)"}. 화면 안 파이썬 실행 ${S.runs}회.${(S.userCases||[]).filter(c=>c.expr.trim()).length ? `\n응시자가 직접 추가한 테스트 케이스(반례) ${(S.userCases||[]).filter(c=>c.expr.trim()).length}개: ${(S.userCases||[]).filter(c=>c.expr.trim()).map(c=>`${c.expr.trim().replace(/\n/g," ; ")} → ${c.want.trim()}`).join(" / ").slice(0,1500)}` : (S.task&&S.task.type==="lib" ? "\n응시자가 직접 추가한 테스트 케이스는 없음." : "")}
 
 [채점 기준]
 ${CRITERIA.map(c=>`- ${c.name} (${c.max}점): ${c.desc}`).join("\n")}
@@ -3895,7 +3896,7 @@ function buildReport(rec){
   L.push(`# ${T.title} · ${R.total}점`, "");
   L.push(`- 날짜: ${when}`);
   L.push(`- 직무: ${TRACKS[T.track]?.name||""} · 유형: ${typeName(T)} · 출처: ${S.source==="ai"?"AI 출제":"문제은행"}`);
-  L.push(`- 환경: ${R.env==="builtin"?`시험장 방식 · AI 성능 ${LEVELS[S.aiLevel].name}`:"내 도구"} · 채점: ${R.mode==="ai"?"AI 채점":"직접 채점"}`);
+  L.push(`- 환경: ${R.env==="builtin"?`시험장 방식 · ${modelLabel()}`:"내 도구"} · 채점: ${R.mode==="ai"?"AI 채점":"직접 채점"}`);
   L.push(`- 사용 시간: ${R.minutesUsed}분 / ${S.minutes}분`);
   if(R.env==="builtin" && R.limit==="exam") L.push(`- 실전 규칙 · 질문 ${R.prompts}/${Q_LIMIT}회 · 보낸 토큰 약 ${R.sentTokens}/${SEND_LIMIT} · 화면 이탈 ${R.leaves}회`);
   else if(R.env==="builtin") L.push(`- 질문 ${R.prompts}회 · ${R.realTokens?"토큰":"토큰(추정)"} ${R.tokens.toLocaleString()} / 목표 ${tokenTarget().toLocaleString()} · 화면 이탈 ${R.leaves}회`);
