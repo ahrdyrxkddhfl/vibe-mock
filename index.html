@@ -9,10 +9,10 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&family=Nanum+Gothic+Coding:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;700&family=Nanum+Gothic+Coding:wght@400;700&display=swap">
 <style>
-/* Layout: 윈도 95 느낌의 회색 창. 바탕은 탁한 청회색 책상, 그 위에 입체 테두리 창(문제 | 코드 | AI)을 띄우고
-   창 제목줄만 탁한 청록. 채도를 낮춘 한 가지 밝은 화면으로만 만든다(다크 모드 없음). */
+/* Layout: 코딩테스트 플랫폼 느낌의 다크 화면(문제 | 코드·실행 | AI). 아래 기본 규칙은 예전 윈도 95 모양이고,
+   스타일 맨 끝의 '다크 테마' 블록이 색·테두리·글꼴을 덮어써요. 다크 한 가지 화면으로만 만든다. */
 :root{
   --desk:#7F8E8B; --face:#BDBEB8; --face-2:#CDCEC8; --hi:#F5F5F0; --shadow:#74756F; --dark:#3B3C38;
   --field:#F3F2ED; --field-2:#E7E6DF; --ink:#1E1F1C; --muted:#4D4E49;
@@ -376,6 +376,212 @@ div.CodeMirror-dragcursors{visibility:visible}
 .cm-force-border{padding-right:.1px}
 .cm-tab{display:inline-block;text-decoration:inherit}
 span.CodeMirror-selectedtext{background:0 0}
+
+/* ═════ 다크 테마: 코딩테스트 플랫폼(구름·프로그래머스) 느낌. 위의 윈도 95 스타일을 덮어써요 ═════ */
+:root{
+  --desk:#0f1620; --face:#18222f; --face-2:#223042; --hi:#2b394c; --shadow:#2b394c; --dark:#0a0f15;
+  --field:#121b26; --field-2:#1f2a38; --ink:#e3e9f1; --muted:#8b9bb0;
+  --title:#18222f; --title-ink:#e3e9f1; --title-off:#5c6b7e; --sel:#21466e;
+  --ok:#3fb97a; --bad:#f26d6d; --warn:#e0a83a;
+  --line:#263446; --accent:#3d8bfd; --accent-2:#2f74d8;
+  --f-body:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-mono:"JetBrains Mono","Nanum Gothic Coding",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+body{background:var(--desk);color:var(--ink);font-size:14.5px;line-height:1.7;-webkit-font-smoothing:antialiased}
+body::before{background:var(--face)}
+a,.linkbtn{color:#6cb0ff}
+button:focus-visible,textarea:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+::-webkit-scrollbar{width:10px;height:10px} ::-webkit-scrollbar-thumb{background:#2a394c;border-radius:6px;border:2px solid transparent;background-clip:padding-box} ::-webkit-scrollbar-track{background:transparent}
+
+/* 입체 테두리 → 얇은 선 */
+.raised,.btn,.choice,.card,.wrap > .section,.wrap > details,.wrap > .block,.wrap > .crit,.wrap > .score,.wrap > .self,.pane,.overlay .card,.seg button,.ftab,.ctab,.mtabs button,
+.sunken,textarea,.field input[type=password],.field input[type=text],pre,.notice,.stream,.timer,.statusbar > span,.hidden-checks,.reqs,.bar,.editor,.console-body,.msgs,.ring,
+.window,.stat,.replist,.report-win > .md,.tablewrap,.stats span,.ticket span{border:1px solid var(--line);box-shadow:none}
+
+/* 맨 위 막대 */
+.titlebar,.topbar{background:var(--face);color:var(--ink);border-bottom:1px solid var(--line);min-height:44px;font-size:15px}
+.tb-btns,.tb-icon{display:none}
+.topbar .crumb,.titlebar .crumb{color:var(--muted);font-weight:400}
+.pagemenu{top:calc(env(safe-area-inset-top,0px) + 44px);background:var(--face);border-bottom:1px solid var(--line)}
+.pagemenu .m{border:0;border-bottom:2px solid transparent;border-radius:0;padding:8px 12px;color:var(--muted)}
+.pagemenu .m:hover{border-color:transparent;color:var(--ink)}
+.pagemenu .m[aria-current="true"]{background:none;border:0;border-bottom:2px solid var(--accent);color:var(--ink);font-weight:700}
+
+/* 페이지 */
+.wrap{gap:16px}
+.page-title{font-family:var(--f-body);color:var(--ink);text-shadow:none;font-size:22px}
+.wrap > p,.wrap > .status{color:var(--muted)}
+.wrap > .status.err{color:var(--bad)}
+.wrap > .qhead{color:var(--ink)} .wrap > .qhead .qnum{color:var(--muted)}
+.wrap > .section,.wrap > details,.wrap > .block,.wrap > .crit,.wrap > .score,.wrap > .self{background:var(--face);border-radius:10px;overflow:hidden}
+.wrap > .section > h2:first-child,.wrap > .block > h3:first-child{background:transparent;color:var(--ink);font-size:15px;padding:14px 16px 0}
+.wrap > .section > h2 .muted{color:var(--muted)}
+.ticket span{background:var(--face-2);border-radius:999px;padding:2px 10px}
+.choice{background:var(--face-2);border-radius:8px;padding:10px 12px}
+.choice:hover:not(:disabled){border-color:#3a4b61}
+.choice[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:rgba(61,139,253,.12)}
+.choice[aria-pressed="true"] b::before{content:"✓ ";color:var(--accent)}
+.choice:disabled{opacity:.45;color:var(--ink)}
+.btn{background:var(--face-2);color:var(--ink);border-radius:6px;padding:5px 14px}
+.btn:hover:not(:disabled){background:#2a3a4f}
+.btn:active:not(:disabled){border-color:var(--line);box-shadow:none;padding:5px 14px}
+.btn:not(.ghost):not(.sm){outline:none;background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:not(.ghost):not(.sm):hover:not(:disabled){background:var(--accent-2)}
+.btn.sm{border-radius:6px}
+.btn:disabled{opacity:.45;color:var(--ink);text-shadow:none}
+.notice{background:var(--field);border-radius:8px}
+.notice.pen{background:#2a2216;border-color:#4d3d1f}
+.field input[type=password],.field input[type=text],textarea{background:var(--field);border-radius:6px}
+.field input:focus,textarea:focus{border-color:var(--accent);outline:none}
+pre{background:var(--field);border-radius:6px}
+code{background:var(--field-2);border-radius:4px;padding:1px 5px}
+.hist{background:var(--field)}
+.hist th{background:var(--face-2);border:0;border-bottom:1px solid var(--line);color:var(--muted)}
+.hist td{border-bottom:1px solid var(--line)}
+.tablewrap{border-radius:8px}
+.tag{background:var(--face-2);border-color:var(--line);border-radius:999px;color:var(--muted)}
+
+/* 홈 */
+.dicon{color:var(--ink);border-radius:10px;padding:10px 6px}
+.dicon span{text-shadow:none}
+.dicon:hover,.dicon:focus-visible{background:var(--face)}
+.dicon:hover span,.dicon:focus-visible span{background:none;outline:none}
+.window{background:var(--face);border-radius:10px;overflow:hidden}
+.window > h2{background:transparent;color:var(--ink);font-size:16px;padding:16px 16px 0}
+.stat{background:var(--field);border-radius:8px}
+.replist{background:var(--field);border-radius:8px;overflow:hidden}
+.replist li + li{border-top:1px solid var(--line)}
+.repitem:hover,.repitem:focus-visible{background:var(--face-2)}
+.report-win > .md{background:var(--field);border-radius:8px}
+.md h3{border-bottom:1px solid var(--line)}
+.md h4,.md h5{color:#6cb0ff}
+.md blockquote{border-left-color:var(--accent);background:var(--field-2)}
+
+/* 결과 */
+.ring{background:var(--field);border-radius:10px}
+.bar{background:var(--field-2);border:0;border-radius:4px;padding:0;height:10px}
+.bar i{background:var(--accent);border-radius:4px}
+.stats span{background:var(--face-2);border-radius:999px;padding:2px 10px}
+.score-side .pen{color:#6cb0ff}
+.penlist.q li::before{color:#6cb0ff}
+.hidden-checks{background:var(--field);border-radius:8px}
+.hidden-checks li + li{border-top:1px solid var(--line)}
+.seg button{background:var(--face-2);border-radius:6px}
+.seg button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:rgba(61,139,253,.12)}
+.overlay{background:rgba(3,7,12,.65)}
+.overlay .card{background:var(--face);border-radius:12px;padding:0 0 18px}
+.overlay .card > h2{background:transparent;color:var(--ink);font-size:17px;padding:18px 18px 0}
+.overlay .card > :not(h2){margin:0 18px}
+
+/* ───── 시험 화면 ───── */
+.ide{background:var(--desk)}
+.menubar{background:var(--face);border-bottom:1px solid var(--line);box-shadow:none;min-height:46px;padding:6px 12px}
+.menubar .m{border:0;border-radius:6px;color:var(--muted);padding:4px 10px}
+.menubar button.m:hover{border-color:transparent;background:var(--face-2);color:var(--ink)}
+.menubar .m u{text-decoration:none}
+.timer{background:var(--field);border-radius:6px;color:var(--ink);font-size:17px;padding:2px 12px}
+.timer.low{color:var(--bad);border-color:#5b2a2a}
+.statusbar{background:var(--face);border-top:1px solid var(--line);padding:4px 10px;gap:12px;font-size:12.5px;color:var(--muted)}
+.statusbar > span{background:none;border:0;padding:1px 0}
+.phase-now b{color:var(--ink)}
+.ph{background:var(--field-2);border:0;border-radius:3px;height:6px}
+.ph i{background:var(--accent)}
+.meter .warn b{color:var(--bad)}
+.ide-main{padding:0;grid-template-columns:var(--w1,32%) 6px minmax(0,1fr) 6px var(--w3,28%)}
+.gutter{background:var(--desk)}
+.gutter::after{left:2px;width:2px;height:40px;margin-top:-20px;border:0;box-shadow:none;background:#33445a;border-radius:2px}
+.gutter:hover,.gutter.drag{background:#1a2635}
+.gutter:hover::after,.gutter.drag::after{background:var(--accent)}
+.pane{background:var(--face);border:0;border-radius:0}
+.pane-head{background:var(--face);color:var(--ink);height:40px;padding:0 16px;font-size:13.5px;border-bottom:1px solid var(--line)}
+.pane-head::before{display:none}
+.pane-body{background:var(--face);margin:0;border:0;padding:20px 22px 28px;gap:24px}
+.filetabs{background:var(--face);border-bottom:1px solid var(--line);margin:0;padding:0 8px;align-items:stretch;min-height:40px}
+.ftab{background:transparent;border:0;border-bottom:2px solid transparent;border-radius:0;top:0;margin:0;padding:0 8px 0 12px;color:var(--muted);font-size:12.5px}
+.ftab[aria-selected="true"]{background:transparent;border-bottom-color:var(--accent);color:var(--ink);padding-top:0;margin-top:0}
+.ftab-add{color:var(--muted)}
+.editor{margin:0;background:var(--field);border:0}
+.hgutter{margin:0;background:var(--desk);height:6px}
+.hgutter::after{top:2px;height:2px;border:0;background:#33445a;border-radius:2px}
+.hgutter:hover,.hgutter.drag{background:#1a2635}
+.hgutter:hover::after,.hgutter.drag::after{background:var(--accent)}
+.console{padding:0;background:var(--face)}
+.console-bar{background:var(--face);border-bottom:1px solid var(--line);padding:0 8px;align-items:center;min-height:40px}
+.ctab{background:transparent;border:0;border-bottom:2px solid transparent;border-radius:0;top:0;margin:0;padding:9px 12px;color:var(--muted);font-size:13px}
+.ctab[aria-selected="true"]{border-bottom-color:var(--accent);color:var(--ink);padding-top:9px}
+.console-bar .actions{padding-bottom:0}
+.console-body{background:var(--field);border:0;border-radius:0}
+.console-body textarea{color:#cdd6e2}
+.console-status{padding:4px 10px;background:var(--field)}
+/* AI 창 */
+.chat{padding:0;gap:0;background:var(--face)}
+.msgs{background:var(--face);border:0;padding:16px}
+.msg .who{color:var(--muted);font-family:var(--f-body);font-size:12px}
+.msg.me .who::before,.msg.ai .who::before{content:none}
+.msg.me{align-items:flex-end}
+.msg.me .body{background:#223650;border:0;border-radius:12px 12px 2px 12px;padding:8px 12px;max-width:92%}
+.msg.ai .body{max-width:100%}
+.codebox{border-radius:8px;overflow:hidden;border-color:var(--line)}
+.codebox .cb-bar{background:var(--face-2);border-bottom:1px solid var(--line)}
+.codebox .cb-bar button{background:transparent;border:0;color:var(--muted);border-radius:4px;padding:2px 8px}
+.codebox .cb-bar button:hover{background:#2a3a4f;color:var(--ink)}
+.codebox pre{border-radius:0}
+.composer{padding:10px 12px 8px;border-top:1px solid var(--line);background:var(--face)}
+.composer textarea{background:var(--field);border-radius:8px;font-size:14px}
+#agutter{display:none}
+/* AI 답의 마크다운 */
+.md-msg{display:flex;flex-direction:column;gap:8px}
+.md-msg h2,.md-msg h3,.md-msg h4,.md-msg h5{font-size:14.5px;font-weight:700}
+.md-msg ul,.md-msg ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:2px}
+.md-msg blockquote{margin:0;padding:4px 10px;border-left:3px solid var(--accent);color:var(--muted)}
+.md-msg .tablewrap{border-radius:6px}
+
+/* 문제 칸: 플랫폼 문제지 모양 */
+.p-q .qhead{gap:6px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.p-q .qnum{font-size:12.5px}
+.p-q .qtitle{font-family:var(--f-body);font-size:20px}
+.qsec{display:flex;flex-direction:column;gap:10px}
+.qsec > h3{font-size:15.5px;font-weight:700;color:var(--ink);display:flex;gap:8px;align-items:center}
+.qsec > p{color:#cfd8e3}
+.qsec pre{font-size:13px;white-space:pre-wrap;word-break:break-word}
+.qsec ul.cond{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;color:#cfd8e3}
+.qsec ul.cond li::marker{color:var(--muted)}
+.qsec .note{font-size:13px;color:var(--muted)}
+.reqs{background:var(--field);border-radius:8px}
+.reqs li + li{border-top:1px solid var(--line)}
+.reqs input{accent-color:var(--accent)}
+details.qmore{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--field)}
+details.qmore > summary{font-size:14px;color:var(--muted)}
+details.qmore[open] > summary{margin-bottom:10px;color:var(--ink)}
+
+/* 에디터 색 (다크) */
+.CodeMirror{background:var(--field);color:#d7dee8}
+.CodeMirror-gutters{background:var(--field);border-right:1px solid var(--line)}
+.CodeMirror-linenumber{color:#4f6076}
+.CodeMirror-cursor{border-left-color:#e3e9f1}
+.CodeMirror-activeline-background{background:#172231}
+.CodeMirror-selected{background:#24364d!important}
+.CodeMirror-focused .CodeMirror-selected{background:#264a74!important}
+.CodeMirror-matchingbracket{color:#fff!important;background:#2c4a33;outline:1px solid #3fb97a}
+.cm-s-default .cm-keyword{color:#c792ea;font-weight:400}.cm-s-default .cm-def{color:#82aaff;font-weight:400}.cm-s-default .cm-variable-2{color:#f07178}
+.cm-s-default .cm-builtin{color:#ffcb6b}.cm-s-default .cm-string{color:#c3e88d}.cm-s-default .cm-string-2{color:#c3e88d}
+.cm-s-default .cm-number{color:#f78c6c}.cm-s-default .cm-comment{color:#5f7187;font-style:italic}.cm-s-default .cm-operator{color:#89ddff}
+.cm-s-default .cm-meta{color:#ffcb6b}.cm-s-default .cm-property{color:#82aaff}.cm-s-default .cm-atom{color:#f78c6c}.cm-s-default .cm-variable{color:#d7dee8}
+.CodeMirror-scrollbar-filler,.CodeMirror-gutter-filler{background-color:var(--field)}
+
+@media (max-width:900px){
+  .mtabs{background:var(--face);border-bottom:1px solid var(--line);padding:0 6px}
+  .mtabs button{background:transparent;border:0;border-bottom:2px solid transparent;border-radius:0;top:0;margin:0;padding:10px 0;color:var(--muted)}
+  .mtabs button[aria-selected="true"]{border-bottom-color:var(--accent);color:var(--ink);padding-top:10px;margin-top:0}
+}
+
+.apitable{width:100%;border-collapse:collapse;background:var(--field);border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:13px}
+.apitable td{padding:5px 10px;vertical-align:top;border-top:1px solid #1c2633}
+.apitable tr:first-child td{border-top:0}
+.apitable tr.gap td{padding:2px;border-top:0}
+.apitable td.c code{background:none;padding:0;color:#d7dee8;white-space:pre-wrap;word-break:break-word}
+.apitable td.d{color:var(--muted);width:46%}
 </style>
 </head>
 <body>
@@ -1688,6 +1894,128 @@ const TRACKS = {
 
 const API_RULES = "main.py에 FastAPI 앱 객체 app을 만들어요. 저장은 메모리(dict 등)나 sqlite3 ':memory:'로 해요. 채점은 명세대로 동작하는지 테스트 케이스로 확인하고, 케이스마다 앱을 새로 시작해요. 이 화면에선 서버(uvicorn)를 띄울 수 없으니 TestClient로 확인해요.";
 
+/* 문제 칸을 시험 플랫폼처럼 '문제 → 조건 → 함수 → 라이브러리 → 입력 → 출력 → 예제' 순서로 보여 주기 위한 항목별 내용.
+   채점·AI 출제·보고서에는 지금처럼 spec 전체 글을 써요. */
+const LIB_PARTS = {
+"any-lib-roll": {
+  fn:`take_attendance(book, date, rows) -> dict
+monthly_report(book, month) -> list`,
+  lib:`from rollbook import RollBook
+
+RollBook(names)                 출석번호는 이름 가나다순으로 1번부터
+  .size() -> int                학생 수
+  .number_of(name) -> int       없는 이름이면 KeyError
+  .name_of(number) -> str       없는 번호면 KeyError
+  .mark(name, date, status)     그날 상태 기록 (같은 날 다시 하면 덮어씀)
+  .status(name, date) -> str | None
+  .count(date, status) -> int   그날 status인 학생 수
+  .dates() -> list              기록이 있는 날짜 (오름차순)`,
+  input:`book   RollBook 객체
+date   "YYYY-MM-DD" 문자열
+rows   ["번호:상태", ...]  예) ["3:출석", "12:지각"]
+month  "YYYY-MM" 문자열`,
+  output:`take_attendance → {"출석": n, "지각": n, "결석": n, "errors": [줄 번호, ...]}
+monthly_report  → [{"number", "name", "출석", "지각", "결석", "rate"}, ...]  출석번호 순서`,
+  rules:["상태는 \"출석\", \"지각\", \"결석\" 세 가지예요.","각 줄의 칸 앞뒤 공백은 지워요.","형식이 틀리거나(콜론이 1개가 아님, 번호가 숫자가 아님) 없는 번호, 모르는 상태인 줄은 errors에 줄 번호(1부터)를 넣고 나머지 줄은 처리해요.","같은 번호가 여러 번 나오면 마지막 줄을 반영해요.","rows에 없는 학생은 그날 \"결석\"으로 기록해요. 인원은 그날 기준이에요.","monthly_report는 그 달에 기록이 있는 날만 세요.","rate = (출석 + 지각 × 0.5) / 그 달 기록된 날 수, round(값, 2). 기록된 날이 없으면 0.0이에요."] },
+"sw-lib-seat": {
+  fn:`book_group(seat_map, user, seats) -> dict
+find_adjacent(seat_map, row, n) -> list | None`,
+  lib:`from seat_lib import SeatMap, SeatTaken, NoSuchSeat
+
+SeatMap(rows="ABCDE", per_row=10)
+  .is_free(seat) -> bool             없는 좌석이면 NoSuchSeat
+  .hold(seat, user)                  잡혀 있으면 SeatTaken, 없는 좌석이면 NoSuchSeat
+  .release(seat)                     잡은 좌석 풀기
+  .owner(seat) -> str | None
+  .seats_in_row(row) -> list         번호순. 없는 열이면 []`,
+  input:`seat_map  SeatMap 객체
+user      예매자 이름 (str)
+seats     좌석 이름 목록 (list[str])  좌석 이름은 열 글자 + 번호 ("A1" ~ "E10")
+row       열 이름 (str)
+n         붙은 좌석 수 (int)`,
+  output:`book_group 성공 → {"ok": True, "seats": seats와 같은 순서}
+book_group 실패 → {"ok": False, "reason": 사유, "seat": 문제 좌석}
+find_adjacent  → ["A7", "A8", "A9"] 처럼 좌석 이름 목록, 없으면 None`,
+  rules:["book_group은 seats를 전부 잡거나 하나도 안 잡아야 해요. 실패하면 이번 호출에서 잡은 좌석을 모두 풀어요.","실패 사유: \"EMPTY\"(빈 목록, seat는 None), \"DUPLICATE\"(같은 좌석이 두 번 이상, 처음 겹친 좌석), \"TAKEN\"(이미 잡힌 좌석, 같은 user가 가진 좌석 포함), \"NO_SUCH_SEAT\"(없는 좌석)","DUPLICATE는 hold를 부르기 전에 걸러요.","\"A01\", \"A0\"은 없는 좌석이에요.","find_adjacent는 그 열에서 번호가 이어진 빈 좌석 n개 중 가장 왼쪽 묶음을 돌려줘요. 없거나 없는 열이면 None이에요.","n < 1이면 ValueError예요."] },
+"sw-lib-limit": {
+  fn:`class RateLimiter:
+    def __init__(self, limit, window)
+    def allow(self, key, now) -> bool
+    def remaining(self, key, now) -> int
+    def retry_after(self, key, now) -> float`,
+  lib:`표준 라이브러리만 써요. (collections.deque 등)`,
+  input:`limit   window초 동안 허용할 호출 수 (int)
+window  초 (int)
+key     사용자 구분 값 (str)
+now     지금 시각, 초 (숫자). 줄어들지 않는다고 가정해도 돼요`,
+  output:`allow        허용하면 True, 아니면 False
+remaining    지금 더 허용할 수 있는 횟수
+retry_after  막혀 있으면 다시 허용될 때까지 남은 초, 아니면 0`,
+  rules:["(now - window, now] 구간에 허용된 호출이 limit개 미만이면 허용하고 그 호출을 기록해요.","window=10이면 0초에 허용된 호출은 10초 시점부터 빠져요.","거절된 호출은 기록하지 않아요.","remaining은 기록을 바꾸지 않아요.","key(사용자)마다 따로 세요.","limit < 1 또는 window < 1이면 ValueError예요."] },
+"de-lib-pos": {
+  fn:`clean(lines) -> tuple   (rows, rejects)
+daily(rows) -> dict`,
+  lib:`표준 라이브러리만 써요. (re, datetime 등)`,
+  input:`lines  문자열 목록. 한 줄 = "시각|매장|거래ID|금액|결제수단"
+       예) "2026-10-20T23:40:00Z|GN01|T1001|12000|CARD"
+rows   clean이 돌려준 rows`,
+  output:`clean → (rows, rejects)
+  rows     [{"at": datetime(시간대 포함), "store", "txn_id", "amount": int, "pay"}]  입력 순서대로
+  rejects  [{"line_no": 몇 번째 줄(1부터), "reason": 사유}]
+daily → {(매장, "YYYY-MM-DD"): {"count": 건수, "sum": 금액 합}}`,
+  rules:["거절 사유는 이 순서로 검사하고 처음 걸린 것 하나만 적어요: \"FORMAT\"(칸이 5개가 아님) → \"TIME\"(ISO 8601이 아니거나 시간대 없음) → \"AMOUNT\"(숫자로만 된 1 이상 정수가 아님) → \"PAY\"(CARD, CASH, POINT 대문자가 아님) → \"DUP\"(앞에서 이미 rows에 넣은 거래ID)","\"12,000\", \"1000.0\", \"-5\", \"0\"은 모두 AMOUNT로 거절해요.","칸마다 앞뒤 공백은 지워요.","빈 줄(공백만)은 건너뛰고 rejects에도 넣지 않아요. 줄 번호는 세요.","daily의 날짜는 한국 시각(UTC+9) 기준이에요."] },
+"de-lib-load": {
+  fn:`load_increment(table, ckpt, events, job="inventory") -> dict`,
+  lib:`from warehouse_db import Table, CheckpointStore
+
+Table()
+  .get(key) -> dict | None
+  .upsert(key, row)            없으면 넣고 있으면 통째로 바꿈
+  .all() -> {키: 행}
+  .writes                      upsert를 부른 횟수
+CheckpointStore()
+  .read(job) -> int            처음엔 0
+  .write(job, value)`,
+  input:`table   Table 객체
+ckpt    CheckpointStore 객체
+events  [{"seq": int, "sku": str, "qty": int, "updated_at": ISO 8601 문자열}]  seq 순서가 섞여 올 수 있어요
+job     체크포인트 이름`,
+  output:`{"loaded": n, "stale": n, "invalid": n, "skipped_old": n, "checkpoint": 값}
+적재되는 행: {"sku", "qty", "updated_at": 받은 문자열 그대로, "seq"}`,
+  rules:["seq가 ckpt.read(job) 이하인 이벤트는 이미 처리한 것이라 건너뛰어요 (skipped_old).","나머지를 seq 오름차순으로 처리해요.","잘못된 이벤트는 적재하지 않아요 (invalid): sku가 빈 문자열이거나 없음, qty가 정수가 아니거나(True·False 포함) 음수, updated_at에 시간대가 없거나 형식 오류","키는 sku예요. 이미 있는 행보다 updated_at(실제 시각)이 늦을 때만 upsert하고, 같거나 이르면 쓰지 않아요 (stale).","끝나면 ckpt.write(job, 이번에 본 가장 큰 seq). invalid였던 이벤트도 포함해요. 새 이벤트가 없으면 그대로 둬요.","같은 묶음을 다시 넣어도 결과가 같아야 해요."] },
+"ai-lib-retry": {
+  fn:`ask(client, prompt, max_retries=3, base_delay=1.0) -> dict
+batch(client, prompts, budget) -> dict`,
+  lib:`from fake_llm import FakeLLM, RateLimitError, BadRequestError
+
+FakeLLM(script=None)
+  .complete(prompt) -> {"text", "tokens"}   실패하면 RateLimitError 또는 BadRequestError
+  .count_tokens(text) -> int                 글자 2개 = 1토큰 (최소 1)
+  .sleep(seconds)                            기다리기 (기록만 해요)
+  .calls   complete를 부른 횟수
+  .slept   sleep에 넘긴 초 목록`,
+  input:`client       FakeLLM 객체
+prompt       보낼 글 (str)
+max_retries  처음 시도를 뺀 최대 재시도 횟수
+base_delay   첫 대기 시간(초)
+prompts      보낼 글 목록
+budget       쓸 수 있는 토큰 합`,
+  output:`ask 성공 → {"ok": True, "text", "tokens", "attempts": 시도 횟수}
+ask 실패 → {"ok": False, "error": "RATE_LIMIT" | "BAD_REQUEST" | "EMPTY", "attempts"}
+batch    → {"results": [ask 결과, ...], "used": 쓴 토큰 합}`,
+  rules:["RateLimitError면 client.sleep(base_delay × 2^(재시도 번호-1))만큼 기다리고 다시 해요. 예) 1초, 2초, 4초…","BadRequestError는 다시 하지 않고 기다리지도 않아요.","prompt가 비었거나 공백뿐이면 호출하지 않고 EMPTY, attempts 0이에요.","batch는 부르기 전에 client.count_tokens(prompt)가 남은 예산(budget - used)보다 크면 부르지 않고 {\"ok\": False, \"error\": \"BUDGET\", \"attempts\": 0}. 다음 프롬프트는 계속 시도해요.","used에는 성공한 호출의 tokens만 더해요."] },
+"ai-lib-mask": {
+  fn:`mask(text) -> str
+chunk(text, max_chars, overlap) -> list`,
+  lib:`표준 라이브러리만 써요. (re 등)`,
+  input:`text       상담 기록 글 (str)
+max_chars  조각 하나의 최대 글자 수 (int)
+overlap    앞 조각과 겹칠 글자 수 (int)`,
+  output:`mask   개인정보를 가린 글
+chunk  조각 목록 (list[str])`,
+  rules:["휴대폰: 010-1234-5678, 01012345678, 010 1234 5678 → \"010-****-5678\" (모양 통일). 앞뒤가 숫자로 이어진 더 긴 숫자 안의 010…은 건드리지 않아요.","이메일: kim.cj@olive.co.kr → \"k***@olive.co.kr\" (아이디 첫 글자 + ***)","주민번호 모양: 990101-1234567 → \"990101-*******\" (앞뒤가 숫자로 이어지면 건드리지 않음)","chunk는 max_chars 글자씩 자르고, 다음 조각은 앞 조각 끝 overlap 글자를 겹쳐 시작해요.","마지막 조각이 앞 조각에 다 들어 있으면 만들지 않아요. 빈 문자열이면 []예요.","max_chars <= 0, overlap < 0, overlap >= max_chars이면 ValueError예요."] },
+};
+
 const LIB_RULES = "solution.py에 함수·클래스를 만들어요. 채점은 숨은 테스트가 함수를 직접 불러 결과를 확인하고, 테스트마다 모듈을 새로 불러와요. 제공 라이브러리 파일은 고치지 마세요(채점할 땐 원본으로 바뀌어요). 직접 확인은 test_로 시작하는 파일에 pytest로 써서 테스트 버튼으로 돌려요.";
 
 const BANK = [
@@ -2297,7 +2625,7 @@ function viewHome(){
     <section class="window home-win">
       <h2>바이브코딩 모의고사</h2>
       <div class="win-body">
-        <p>CJ올리브네트웍스 AI 역량진단(바이브 코딩 테스트) 연습장이에요. 플랫폼 안 AI와 대화하며 API를 구현하고, 숨은 테스트와 대화 기록으로 채점받아요.</p>
+        <p>CJ올리브네트웍스 AI 역량진단(바이브 코딩 테스트) 연습장이에요. 플랫폼 안 AI와 대화하며 제공 라이브러리를 써서 함수를 구현하고, 숨은 테스트와 대화 기록으로 채점받아요.</p>
         ${inProgress() ? `<div class="notice"><b>풀던 문제가 있어요.</b> ${esc(S.task.title)} · ${S.pausedAt?"일시정지 중":`약 ${left}분 남음`}<div class="actions" style="margin-top:8px"><button class="btn sm" data-nav="exam">이어서 풀기</button><button class="btn ghost sm" id="quitExam">그만두기</button></div></div>` : ""}
         <div class="home-stats">
           <div class="sunken stat"><span>푼 횟수</span><b>${n}</b></div>
@@ -2399,7 +2727,7 @@ async function openReport(i){
 
 /* 보고서 마크다운을 화면용 HTML로 (제목·목록·표·코드·인용·굵게만) */
 function mdInline(t){
-  return esc(t).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+  return esc(t).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/(^|[^*\w])\*([^*\n]+)\*(?!\*)/g, "$1<i>$2</i>");
 }
 function mdToHtml(md){
   const L = md.replace(/\r/g,"").split("\n"); const out = []; let i = 0;
@@ -2421,9 +2749,14 @@ function mdToHtml(md){
       out.push(`<ul>${items.map(t=>{ const m=t.match(/^\[( |x)\]\s+(.*)$/); return m ? `<li class="task">${m[1]==="x"?"☑":"☐"} ${mdInline(m[2])}</li>` : `<li>${mdInline(t)}</li>`; }).join("")}</ul>`);
       continue;
     }
+    if(/^\s*\d+[.)]\s+/.test(line)){
+      const items = []; while(i < L.length && /^\s*\d+[.)]\s+/.test(L[i])) items.push(L[i++].replace(/^\s*\d+[.)]\s+/,""));
+      out.push(`<ol>${items.map(t=>`<li>${mdInline(t)}</li>`).join("")}</ol>`);
+      continue;
+    }
     if(/^>\s?/.test(line)){ const buf=[]; while(i < L.length && /^>\s?/.test(L[i])) buf.push(L[i++].replace(/^>\s?/,"")); out.push(`<blockquote>${mdInline(buf.join(" "))}</blockquote>`); continue; }
     if(!line.trim()){ i++; continue; }
-    const buf = []; while(i < L.length && L[i].trim() && !/^(#{1,4}\s|\||\s*-\s|>|`{3,}|~{3,})/.test(L[i])) buf.push(L[i++]);
+    const buf = []; while(i < L.length && L[i].trim() && !/^(#{1,4}\s|\||\s*-\s|\s*\d+[.)]\s|>|`{3,}|~{3,})/.test(L[i])) buf.push(L[i++]);
     out.push(`<p>${mdInline(buf.join("\n")).replace(/\n/g,"<br>")}</p>`);
   }
   return out.join("\n");
@@ -2468,19 +2801,63 @@ function ensureFiles(){
 function syncCode(){ S.code = serializeFiles(S.files); updateCount(); saveDraft(); }
 function activeFile(){ ensureFiles(); return S.files[Math.min(S.active||0, S.files.length-1)]; }
 
+// 문제 글을 [제목] 줄 단위로 나눔 (AI 출제 문제처럼 항목별 내용이 없을 때 씀)
+function splitSpec(spec){
+  const out = []; let cur = null;
+  for(const line of String(spec || "").split("\n")){
+    const m = line.match(/^\[([^\]]+)\]\s*(.*)$/);
+    if(m){ cur = { h:m[1].trim(), body: m[2] ? [m[2]] : [] }; out.push(cur); }
+    else if(cur) cur.body.push(line);
+    else { cur = { h:"", body:[line] }; out.push(cur); }
+  }
+  return out.map(x => ({ h:x.h, body:x.body.join("\n").replace(/^\n+|\s+$/g, "") })).filter(x => x.body);
+}
+const qsec = (title, inner) => `<section class="qsec"><h3>${title}</h3>${inner}</section>`;
+// "코드   설명"처럼 공백 2칸 이상으로 나뉜 줄을 (코드 | 설명) 표로 보여 줌. 좁은 칸에서도 줄이 엉키지 않게
+function apiTable(text){
+  const rows = String(text || "").split("\n").map(line => {
+    if(!line.trim()) return `<tr class="gap"><td colspan="2"></td></tr>`;
+    const indent = (line.match(/^ */)[0].length);
+    const body = line.trim(), m = body.match(/^(.*?\S)\s{2,}(\S.*)$/);
+    const pad = indent ? ` style="padding-left:${8 + indent * 6}px"` : "";
+    return m ? `<tr><td class="c"${pad}><code>${esc(m[1])}</code></td><td class="d">${esc(m[2])}</td></tr>`
+             : `<tr><td class="c" colspan="2"${pad}><code>${esc(body)}</code></td></tr>`;
+  }).join("");
+  return `<table class="apitable">${rows}</table>`;
+}
+// 시험 플랫폼 문제지 순서: 문제 → 조건 → 함수 → 라이브러리 → 입력 → 출력 → 예제
 function paneQuestion(){
   const T = S.task;
+  const P = T.parts || (typeof LIB_PARTS !== "undefined" ? LIB_PARTS[T.id] : null);
+  const files = Object.keys(libFilesOf(T));
+  const fileNote = files.length ? `<p class="note">제공 파일: ${files.map(f=>`<code>${esc(f)}</code>`).join(", ")} (코드 창 탭). 고치지 마세요. 채점할 땐 원본으로 바뀌어요.</p>` : "";
+  const fnNote = T.type==="lib" ? `<p class="note">solution.py에 만들어요. 숨은 테스트가 이 이름으로 함수를 불러 채점해요.</p>` : "";
   const reqs = T.must.map((r,i)=>`<li><label><input type="checkbox" id="req-${i}" data-req="${i}" ${S.done[i]?"checked":""}><span>${esc(r)}</span></label></li>`).join("");
   const nice = T.nice.map((r,i)=>`<li><label><input type="checkbox" id="nice-${i}" data-nice="${i}" ${S.done["n"+i]?"checked":""}><span>${esc(r)}</span></label></li>`).join("");
-  return `
-  <div class="qhead"><span class="qnum">${S.source==="ai"?"AI 출제":"문제은행"} · ${esc(TRACKS[T.track]?.name||"")} · ${typeName(T)}</span><h2 class="qtitle">${esc(T.title)}</h2></div>
-  <p>${esc(T.scenario)}</p>
-  ${T.api?`<div class="block"><h3>API 명세</h3><pre>${esc(T.api)}</pre><p class="muted small">${esc(API_RULES)}</p></div>`:""}
-  ${T.spec?`<div class="block"><h3>명세</h3><pre>${esc(T.spec)}</pre><p class="muted small">${esc(LIB_RULES)}${Object.keys(libFilesOf(T)).length?` 제공 파일: ${Object.keys(libFilesOf(T)).map(esc).join(", ")} (코드 창 탭)`:""}</p></div>`:""}
-  <div class="block"><h3>필수 요구사항 <span class="tag">끝낸 것에 체크</span></h3><ul class="reqs">${reqs}</ul></div>
-  <div class="block"><h3>가산점</h3><ul class="reqs">${nice}</ul></div>
-  <div class="block"><h3>${T.type==="lib"?"사용 예시":"입력 예시"}</h3><pre>${esc(T.sample)}</pre></div>
-  <div class="block"><h3>제출물</h3><p>${esc(T.deliver)}</p></div>`;
+  let body = qsec("문제 설명", `<p>${esc(T.scenario)}</p>`);
+  let structured = true;
+  if(P){
+    body += qsec("조건", `<ul class="cond">${P.rules.map(r=>`<li>${esc(r)}</li>`).join("")}</ul>`)
+      + qsec("구현할 함수", `<pre>${esc(P.fn)}</pre>${fnNote}`)
+      + qsec("제공 라이브러리", `${apiTable(P.lib)}${fileNote}`)
+      + qsec("입력", `${apiTable(P.input)}`)
+      + qsec("출력", `${apiTable(P.output)}`);
+  } else if(T.spec){
+    const secs = splitSpec(T.spec);
+    const pick = re => secs.filter(x => re.test(x.h));
+    const fn = pick(/구현할/), lib = pick(/라이브러리/), rest = secs.filter(x => !/구현할|라이브러리/.test(x.h));
+    body += fn.map(x => qsec(esc(x.h), `<pre>${esc(x.body)}</pre>${fnNote}`)).join("")
+      + lib.map(x => qsec(esc(x.h), `<pre>${esc(x.body)}</pre>${fileNote}`)).join("")
+      + rest.map(x => qsec(esc(x.h || "명세"), `<pre>${esc(x.body)}</pre>`)).join("");
+  } else if(T.api){
+    body += qsec("API 명세", `<pre>${esc(T.api)}</pre><p class="note">${esc(API_RULES)}</p>`);
+  } else structured = false;
+  if(!structured) body += qsec(`요구사항 <span class="tag">끝낸 것에 체크</span>`, `<ul class="reqs">${reqs}</ul>`);
+  body += qsec(T.type==="lib" ? "예제" : "입력 예시", `<pre>${esc(T.sample)}</pre>`);
+  body += `<details class="qmore"><summary>${structured ? "체크리스트 · 제출물" : "가산점 · 제출물"}</summary>
+    <div class="qsec">${structured ? `<h3>필수 <span class="tag">끝낸 것에 체크</span></h3><ul class="reqs">${reqs}</ul>` : ""}
+    <h3>가산점</h3><ul class="reqs">${nice}</ul><h3>제출물</h3><p>${esc(T.deliver)}</p></div></details>`;
+  return `<div class="qhead"><span class="qnum">${S.source==="ai"?"AI 출제":"문제은행"} · ${esc(TRACKS[T.track]?.name||"공통")} · ${typeName(T)}</span><h2 class="qtitle">${esc(T.title)}</h2></div>${body}`;
 }
 
 function paneChat(){
@@ -2509,11 +2886,16 @@ function renderBody(text, idx){
   const parts = []; let last = 0, n = 0;
   const re = /```[^\n]*\n?([\s\S]*?)```/g; let m;
   while((m = re.exec(text))){
-    if(m.index>last) parts.push(`<div class="txt">${esc(text.slice(last,m.index).trim())}</div>`);
+    if(m.index>last) parts.push(`<div class="md-msg">${mdToHtml(text.slice(last,m.index).trim())}</div>`);
     parts.push(`<div class="codebox"><div class="cb-bar"><button data-copy="${idx}:${n}">복사</button><button data-apply="${idx}:${n}">에디터에 넣기</button></div><pre>${esc(m[1])}</pre></div>`);
     last = re.lastIndex; n++;
   }
-  if(last < text.length) parts.push(`<div class="txt">${esc(text.slice(last).trim())}</div>`);
+  if(last < text.length){
+    // 아직 닫히지 않은 코드 블록(답을 받는 중)은 코드로 보여 줌
+    const tail = text.slice(last), open = tail.match(/```[^\n]*\n?([\s\S]*)$/);
+    if(open){ const pre = tail.slice(0, open.index).trim(); if(pre) parts.push(`<div class="md-msg">${mdToHtml(pre)}</div>`); parts.push(`<div class="codebox"><pre>${esc(open[1])}</pre></div>`); }
+    else parts.push(`<div class="md-msg">${mdToHtml(tail.trim())}</div>`);
+  }
   return parts.join("");
 }
 function codeBlocks(text){ const out=[]; const re=/```[^\n]*\n?([\s\S]*?)```/g; let m; while((m=re.exec(text))) out.push(m[1]); return out; }
@@ -2553,7 +2935,7 @@ function paneCode(){
       <span class="actions"><button class="btn ghost sm" id="runStop" ${runBusy?"":"hidden"}>멈추기</button><button class="btn ghost sm" id="runTest" ${runBusy?"disabled":""}>테스트</button><button class="btn sm" id="runMain" ${runBusy?"disabled":""}>▶ 실행</button></span>
     </div>
     <div class="console-body" ${ct==="run"?"":"hidden"} data-cpane="run">
-      <textarea id="run" spellcheck="false" placeholder="▶ 실행은 main.py, 테스트는 test_로 시작하는 파일을 pytest로 돌려요. 브라우저 안 파이썬 3.13 · fastapi·pandas·numpy·sqlite3·scikit-learn·pytest 사용 가능 · 처음 실행 때 10~40MB를 받아요.">${esc(S.run)}</textarea>
+      <textarea id="run" spellcheck="false" placeholder="▶ 실행은 main.py(없으면 solution.py)를 그냥 실행, 테스트는 test_로 시작하는 파일을 pytest로 돌려요. 브라우저 안 파이썬 3.13 · fastapi·pandas·numpy·sqlite3·scikit-learn·pytest 사용 가능 · 처음 실행 때 10~40MB를 받아요.">${esc(S.run)}</textarea>
     </div>
     <div class="console-body" ${ct==="readme"?"":"hidden"} data-cpane="readme">
       <textarea id="readme" spellcheck="false" style="font-family:var(--f-body)" placeholder="## 실행 방법&#10;## 설계&#10;## AI 활용 (맡긴 것 / 직접 판단한 것)&#10;## 못 한 것">${esc(S.readme)}</textarea>
