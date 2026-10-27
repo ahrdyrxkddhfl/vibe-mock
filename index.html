@@ -158,7 +158,7 @@ summary{cursor:pointer;font-weight:700;font-size:14.5px}
 .statusbar .phase-now{flex:1;display:block}
 .phase-now b{font-weight:700}
 .phase-now span{margin-left:6px}
-.phases{display:grid;grid-template-columns:10fr 50fr 25fr 15fr;gap:2px;width:150px;flex:none;align-items:center}
+.phases{display:grid;grid-template-columns:10fr 15fr 35fr 25fr 15fr;gap:2px;width:150px;flex:none;align-items:center}
 .ph{height:10px;background:var(--field);position:relative;overflow:hidden;border:1px solid var(--shadow)}
 .ph i{position:absolute;inset:0;width:0;background:repeating-linear-gradient(90deg,var(--title) 0 6px,transparent 6px 8px)}
 .meter{display:flex;gap:10px;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
@@ -605,6 +605,13 @@ details.qmore[open] > summary{margin-bottom:10px;color:var(--ink)}
 .repicon svg{width:auto;height:auto}
 .tb-icon{display:inline-grid!important;place-items:center;width:24px;height:24px;border-radius:7px;border:0;box-shadow:none;background:linear-gradient(135deg,#3d8bfd,#6a5cff)}
 .tb-icon::before{content:"</>";font-family:var(--f-mono);font-size:9.5px;font-weight:700;color:#fff;letter-spacing:-.04em}
+
+details.guide{background:var(--face);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+details.guide > summary{font-size:15px}
+.guide-body{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.guide-body h3{font-size:14.5px;margin-top:6px}
+.guide-body pre{font-size:12.5px;white-space:pre-wrap}
+.guide-body .tips{margin:0}
 </style>
 </head>
 <body>
@@ -2635,11 +2642,13 @@ const examLevel = () => (typeof MODELS !== "undefined" && MODELS.exam) ? "real" 
 const modelLabel = () => S.aiLevel === "real" ? "Claude Sonnet 4.6" : "Claude";
 const LOW_AI_RULES = `\n[성능 낮은 AI 흉내] 이번 응시자는 성능이 낮은 AI 대비 연습 중이야. 답은 짧게. 경계값·중복·잘못된 입력 처리와 테스트는 응시자가 콕 집어 요청할 때만 넣어. 막연한 요청에는 그럴듯하지만 일부 조건을 빠뜨린 코드를 줘도 돼. 가끔 사소한 실수(정렬 기준, 시간대, off-by-one 등)를 섞되 먼저 말하지 마. 응시자가 실패한 입력과 기대 결과를 구체적으로 주면 그때는 정확히 고쳐 줘.`;
 
+// 한 문제를 푸는 순서 (사전점검 조건: AI는 문제를 못 봄, 보내는 글 500토큰·질문 8번, 실행·테스트 버튼으로 바로 결과)
 const PHASES = [
-  { name:"요구사항 쪼개기", until:.10, hint:"필수 항목을 기능 단위로 나누고 입출력·예외를 먼저 적어요. AI에는 이 목록과 조건을 함께 줘요." },
-  { name:"핵심 구현",       until:.60, hint:"필수 요구사항이 끝까지 도는 최소 버전부터. 한 번에 다 시키지 말고 기능 하나씩." },
-  { name:"검증",            until:.85, hint:"반례를 직접 만들어 돌려요. 수정 요청엔 기대 동작, 실제 결과, 실패한 입력을 같이 적어요." },
-  { name:"정리·제출",       until:1.0, hint:"테스트를 한 번 더 돌리고, 코드 표시 줄(```)·함수 이름·파일 이름을 확인한 뒤 제출해요." },
+  { name:"읽고 표시하기",     until:.10, hint:"문제·조건·함수·라이브러리를 읽고, 헷갈리는 규칙 2~3개를 골라 둬요. 아직 AI는 안 써요." },
+  { name:"찔러 보고 첫 질문", until:.25, hint:"라이브러리를 한두 줄 실행해 반환 모양을 확인(토큰 0)하고, 압축한 첫 질문 하나로 전체 코드를 받아요." },
+  { name:"돌리고 고치기",     until:.60, hint:"테스트로 예제를 돌려요. 실패하면 오류 마지막 줄과 틀린 부분만 짧게 짚어 고쳐요." },
+  { name:"반례 검증",         until:.85, hint:"'테스트 케이스'에 조건에서 고른 반례를 넣어요. 기대 결과는 내가 조건을 보고 정해요." },
+  { name:"확인·제출",         until:1.0, hint:"예제·케이스 전부 통과, 함수 이름·반환 모양 그대로, print·``` 표시 없음을 보고 제출해요." },
 ];
 
 /* ───────── 상태 ───────── */
@@ -2746,14 +2755,44 @@ function viewSetup(){
     </div>
     <p class="status" id="genStatus"></p>
   </section>
-  <details><summary>시험 진행 요령</summary>
+  <details class="guide"><summary>시험 진행 요령 (사전점검 기준)</summary>
+    <div class="guide-body">
+    <h3>이 시험이 보려는 것 (추정)</h3>
+    <p class="muted small">공식 채점 기준은 공개되지 않았어요. 사전점검 조건(AI는 문제를 못 봄, 문제당 보내는 글 500토큰·질문 8번)과 구름 AI 활용 평가가 밝힌 항목(정확성·속도, 질문 최적화, 토큰 효율, 제한된 리소스 안의 문제 해결)으로 추측한 거예요.</p>
+    <ol class="tips">
+      <li><b>문제를 이해하고 핵심만 골라내는 능력</b>: 500토큰으로는 문제를 통째로 보낼 수 없어요. 무엇을 AI에게 알려야 하는지 내가 판단해야 해요.</li>
+      <li><b>AI에게 정확히 시키는 능력</b>: 적은 질문, 짧은 글로 원하는 코드를 한 번에 받아 내는지.</li>
+      <li><b>AI 결과를 판단하는 능력</b>: AI는 문제를 모르니 빈칸을 추측으로 채워요. 그게 조건·라이브러리와 맞는지 내가 거르는지.</li>
+      <li><b>결과물</b>: 숨은 테스트를 통과하는 코드. 여전히 가장 기본이에요.</li>
+    </ol>
+    <h3>한 문제 진행 순서 (2문제 120분 → 한 문제 50분 + 여유 20분)</h3>
     <ol class="tips">
       ${PHASES.map(p=>`<li><b>${esc(p.name)}</b> (시간의 ~${Math.round(p.until*100)}%까지): ${esc(p.hint)}</li>`).join("")}
-      <li>AI 답을 받으면 "왜 이렇게 했는지" 한 번 묻거나 직접 반례를 돌려요. 그대로 붙여 넣기만 하면 검증 점수가 깎여요.</li>
-      <li>토큰 아끼기: 고칠 때는 전체 코드를 다시 달라고 하지 말고 "이 함수만" 고쳐 달라고 해요. 코드 첨부는 필요할 때만 켜요.</li>
-      <li>대화 맥락: 첫 질문에 명세 전체를 주고 설계부터 합의한 뒤, 기능 하나씩 이어서 요청해요. 주제가 바뀔 때마다 처음부터 다시 설명하지 않아요.</li>
-      <li>실제 개인정보·키 값은 AI에 넣지 말고 가짜 값으로 바꿔요.</li>
     </ol>
+    <h3>첫 질문 이렇게 (250~300토큰)</h3>
+    <pre>rollbook: rb.size()->int, rb.name_of(n)->str 없으면 KeyError, rb.mark(name,date,st), rb.count(date,st)->int
+def take_attendance(rb,date,rows)->dict  rows=["1:출석","2:지각"]
+규칙: 공백제거, 형식·없는번호·모르는상태는 errors에 줄번호(1부터), 같은번호는 마지막, 없는학생은 결석
+반환 {"출석":n,"지각":n,"결석":n,"errors":[...]}
+예: ["1:출석","9:출석"] → errors [2]
+질문 말고 바로: 1)전체 코드 2)놓치기 쉬운 경우 3)반례 입력 3개와 기대 결과. 가정은 주석.</pre>
+    <ul class="tips">
+      <li><b>라이브러리 함수 모양</b>을 꼭 넣어요. 안 주면 AI가 없는 함수를 지어내요.</li>
+      <li><b>당연한 건 빼고 틀리기 쉬운 규칙만</b> 넣어요. 한글은 거의 1글자 = 1토큰, 코드 모양·영어 이름이 더 싸요.</li>
+      <li><b>"질문 말고 바로 코드"</b>를 넣어요. AI가 되물으면 답하느라 토큰과 질문 횟수가 날아가요.</li>
+      <li><b>AI 답 길이는 세지 않아요.</b> 코드·놓치기 쉬운 경우·반례를 한 번에 다 받아요.</li>
+    </ul>
+    <h3>점수 올리는 요령</h3>
+    <ul class="tips">
+      <li><b>고칠 때는 한 줄로</b> (50~100토큰): "없는 학생 있을 때 KeyError. 결석 기본값 처리만 고쳐". 코드 전체를 다시 보내거나 다시 달라고 하지 않아요.</li>
+      <li><b>검증은 AI 없이</b>: 실행·테스트·라이브러리 찔러 보기·테스트 케이스는 토큰이 0이에요. AI의 "확인했어요"는 실행한 결과가 아니에요.</li>
+      <li><b>AI 코드의 라이브러리 호출은 문서와 대조</b>: 점(.) 뒤 이름을 '제공 라이브러리'에서 찾아 이름·인자 순서를 확인해요. 라이브러리 기능을 AI가 직접 다시 짜지 않았는지도 봐요.</li>
+      <li><b>반례의 기대 결과는 내가 정해요</b>: AI가 준 기대 결과는 조건과 맞춰 본 뒤 '테스트 케이스'에 넣어요.</li>
+      <li><b>예비 토큰 100은 남겨요</b>: 마지막에 꼭 고쳐야 할 게 생길 수 있어요.</li>
+      <li><b>다 못 풀어도 제출</b>: 숨은 테스트는 케이스별로 점수가 나요. 통과하는 부분까지 내요.</li>
+      <li><b>화면 이탈 0번</b>, 실제 개인정보·키 값은 AI에 넣지 않아요.</li>
+    </ul>
+    </div>
   </details>
 `;
 }
